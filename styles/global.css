@@ -302,11 +302,13 @@ body {
   font-size: var(--zfb-text-base);
   font-weight: 600;
   /* Transition uses the easing semantic token — panel changes update motion live */
-  transition: transform 0.4s var(--zfb-easing-tab-open);
+  transition: transform 0.4s var(--zfb-easing-tab-open),
+              background-color 0.4s var(--zfb-easing-tab-open);
 }
 
 .zfb-easing-card.is-active {
   transform: translateX(8rem);
+  background: var(--zfb-color-primary);
 }
 
 .zfb-easing-card-label {
@@ -333,8 +335,8 @@ body {
 
   /* Type scale */
   --zfb-text-h2:    1.75rem;
-  --zfb-text-h3:    1.35rem;
-  --zfb-text-h4:    1.1rem;
+  --zfb-text-h3:    1.25rem;
+  --zfb-text-h4:    1.125rem;
   --zfb-text-body:  1rem;
   --zfb-text-small: 0.875rem;
   --zfb-text-micro: 0.75rem;
@@ -392,6 +394,9 @@ body {
   font-size: var(--zfb-text-h2);
   line-height: var(--zfb-leading-tight);
   font-weight: 700;
+  color: var(--zfb-color-primary);
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--zfb-color-muted);
 }
 
 .zfb-prose :where(h3) {
@@ -463,12 +468,13 @@ body {
 
 .zfb-prose :where(th, td) {
   padding: var(--zfb-hsp-xs) var(--zfb-hsp-sm);
-  border: 1px solid var(--zfb-color-muted);
+  border-bottom: 1px solid var(--zfb-color-muted);
   text-align: left;
 }
 
 .zfb-prose :where(th) {
   font-weight: 600;
+  border-bottom: 2px solid var(--zfb-color-muted);
 }
 
 /* Horizontal rule */
@@ -482,17 +488,6 @@ body {
 .zfb-prose :where(a) {
   color: var(--zfb-color-accent);
   text-decoration: underline;
-}
-
-/* Heading top-border gradient — reuses fg + muted colour tokens */
-.zfb-prose :where(h2) {
-  padding-top: var(--zfb-vsp-xs);
-  border-top: 2px solid transparent;
-  border-image: linear-gradient(
-    to right,
-    var(--zfb-fg),
-    var(--zfb-color-muted)
-  ) 1;
 }
 
 /* ─── Component-page layout helpers ─────────────────────────────────────── */
