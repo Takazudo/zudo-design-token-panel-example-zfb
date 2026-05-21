@@ -4,3 +4,5 @@ dist/
 .zfb-build/
 zfb-tailwind-entry-*.css
 .zfb-bin/
+playwright-report/
+test-results/
