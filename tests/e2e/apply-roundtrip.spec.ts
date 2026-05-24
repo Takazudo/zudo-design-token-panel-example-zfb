@@ -10,7 +10,7 @@
  * -------------
  *  - Preview server on port 4173 (started by `playwright.config.ts`
  *    webServer: `pnpm run build && pnpm exec zfb preview --port 4173`).
- *  - Bin sidecar `design-token-panel-server` on port 24685, with
+ *  - Bin sidecar `zdtp-server` on port 24685, with
  *    `--write-root .` and `--routing scaffold.routing.json` pointing at
  *    this example's tree.
  *
@@ -52,7 +52,7 @@ const __dirname = dirname(__filename);
 // scaffold.routing.json maps prefix `zfb` → `styles/global.css`.
 const TOKENS_PATH = resolve(__dirname, '..', '..', 'styles', 'global.css');
 const APPLY_URL = 'http://127.0.0.1:24685/apply';
-// reason: origin must match the --allow-origin flag passed to design-token-panel-server
+// reason: origin must match the --allow-origin flag passed to zdtp-server
 const ORIGIN = 'http://localhost:4173';
 
 const STORAGE_PREFIX = 'zfb-example-tokens';

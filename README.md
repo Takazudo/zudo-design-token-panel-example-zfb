@@ -1,6 +1,6 @@
 # zudo-design-token-panel-example-zfb
 
-Demonstrates `@takazudo/zudo-design-token-panel` inside a [zfb (zudo-front-builder)](https://github.com/Takazudo/zudo-front-builder) project. The panel is mounted as a Preact island via zfb's `<Island>` component, and the dev-time apply pipeline is wired through a small zfb plugin's `devMiddleware` hook.
+Demonstrates `@takazudo/zdtp` inside a [zfb (zudo-front-builder)](https://github.com/Takazudo/zudo-front-builder) project. The panel is mounted as a Preact island via zfb's `<Island>` component, and the dev-time apply pipeline is wired through a small zfb plugin's `devMiddleware` hook.
 
 ## Sibling layout
 
@@ -8,7 +8,7 @@ This repo expects two sibling directories alongside it under the same parent:
 
 ```
 $HOME/repos/zdtp-ex/
-  zudo-design-token-panel/   ← @takazudo/zudo-design-token-panel source (pinned SHA)
+  zudo-design-token-panel/   ← @takazudo/zdtp source (pinned SHA)
   zfb/                       ← zudo-front-builder source (pinned SHA)
   zudo-design-token-panel-example-zfb/   ← this repo
 ```
@@ -40,7 +40,7 @@ pnpm dev
 This starts two processes in parallel via `concurrently`:
 
 - `zfb dev` — the zfb dev server at `http://localhost:44327`
-- `design-token-panel-server` — the bin sidecar at port `24685`
+- `zdtp-server` — the bin sidecar at port `24685`
 
 The panel is accessible from the browser console:
 

@@ -19,7 +19,7 @@
  * Color cluster migrated to TabConfig in Wave 7.
  */
 
-import type { PanelConfig } from '@takazudo/zudo-design-token-panel/astro';
+import type { PanelConfig } from '@takazudo/zdtp/astro';
 import { defaultCluster } from './default-cluster';
 
 type TabConfig = PanelConfig['tabs'][number];

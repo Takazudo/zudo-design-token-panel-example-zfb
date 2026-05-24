@@ -1,7 +1,7 @@
 import { defineConfig } from "@takazudo/zfb/config";
 
 /**
- * zfb example for @takazudo/zudo-design-token-panel.
+ * zfb example for @takazudo/zdtp.
  *
  * Deliberately minimal: NO Tailwind, NO collections. The example proves the
  * panel package works inside any zfb consumer that supplies just a
