@@ -4,5 +4,6 @@ dist/
 .zfb-build/
 zfb-tailwind-entry-*.css
 .zfb-bin/
+.zfb-esbuild-entry-*.tsx
 playwright-report/
 test-results/
