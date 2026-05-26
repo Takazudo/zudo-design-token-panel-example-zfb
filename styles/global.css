@@ -72,11 +72,19 @@ textarea {
   --zfb-scale-xs: 0.75rem;
   --zfb-scale-sm: 0.875rem;
   --zfb-scale-base: 1rem;
+  --zfb-scale-md: 1.125rem;
   --zfb-scale-lg: 1.25rem;
   --zfb-scale-xl: 1.75rem;
   --zfb-scale-2xl: 2.5rem;
 
   /* Semantic font role tokens (font tab — semantic tier, reference raw scale) */
+  --zfb-text-page-title: var(--zfb-scale-xl);
+  --zfb-text-section-title: var(--zfb-scale-lg);
+  --zfb-text-subsection-title: var(--zfb-scale-md);
+  --zfb-text-body: var(--zfb-scale-base);
+  --zfb-text-helper: var(--zfb-scale-sm);
+  --zfb-text-annotation: var(--zfb-scale-xs);
+  /* Legacy aliases — kept for backward compat; not deleted per sync policy */
   --zfb-text-base: var(--zfb-scale-base);
   --zfb-text-heading: var(--zfb-scale-xl);
 
@@ -337,7 +345,8 @@ body {
   --zfb-text-h2:    1.75rem;
   --zfb-text-h3:    1.25rem;
   --zfb-text-h4:    1.125rem;
-  --zfb-text-body:  1rem;
+  /* --zfb-text-body is now declared in the primary token block above (semantic tier).
+     This duplicate is removed to avoid overriding the panel-managed value. */
   --zfb-text-small: 0.875rem;
   --zfb-text-micro: 0.75rem;
 
