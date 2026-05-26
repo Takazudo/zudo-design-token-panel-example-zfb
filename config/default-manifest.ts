@@ -5,10 +5,22 @@
  * with the declarations in `styles/global.css` so the panel can rewrite
  * the same names live and the apply pipeline can rewrite them on disk.
  *
- * The font tab uses a 2-tier setup (Wave 5):
- *   - Tier `raw`: 6 scale items
- *   - Tier `semantic` (referencesTier: 'raw'): text-base and text-heading
- *     each default to a scale item id and emit var(--zfb-scale-*)
+ * Token IDs (the `id` field) match the zfb-tailwind reference manifest
+ * (SHA c813a14c9368e9b88e3642120f48d2c375d19c13) exactly — only the
+ * `cssVar` field is rewritten from `--zfbtw-` to `--zfb-`.
+ *
+ * The spacing tab uses a 2-tier setup:
+ *   - Tier `hsp-scale`: 5-step horizontal spacing scale (xs..xl)
+ *   - Tier `vsp-scale`: 7-step vertical spacing scale (2xs..2xl)
+ * Both scales are declared in styles/global.css.
+ *
+ * The font tab uses a 2-tier setup:
+ *   - Tier `raw`: 7 scale items (Tier 1, abstract)
+ *   - Tier `semantic` (referencesTier: 'raw'): 6 concrete-purpose font roles
+ *     (page-title, section-title, subsection-title, body, helper, annotation)
+ *     each defaulting to a scale item id; emits var(--cssVar).
+ *     Names follow the three-tier-font-size-strategy contract: Tier 2 describes
+ *     WHAT the size is for, not which HTML element it lands on.
  *
  * The color tab uses a 2-tier setup (Wave 7):
  *   - Tier `palette`: 16 hex swatches (kind: 'color')
@@ -17,6 +29,8 @@
  *
  * Migrated in Wave 5 from TokenManifest to TabConfig[].
  * Color cluster migrated to TabConfig in Wave 7.
+ * Spacing hsp/vsp scales surfaced as separate tiers in Wave 8 (panel-hardening).
+ * Synced to zfb-tailwind reference in Wave 8 (keep --zfb-* prefix).
  */
 
 import type { PanelConfig } from '@takazudo/zdtp/astro';
@@ -30,48 +44,98 @@ export const defaultTabs: readonly TabConfig[] = [
     label: 'Spacing',
     tiers: [
       {
-        id: 'spacing-scale',
-        label: 'Spacing',
+        id: 'hsp-scale',
+        label: 'Horizontal spacing',
         items: [
           {
-            id: 'zfb-spacing-xs',
-            cssVar: '--zfb-spacing-xs',
-            label: 'Spacing XS',
+            id: 'zfbtw-hsp-xs',
+            cssVar: '--zfb-hsp-xs',
+            label: 'H-Spacing XS',
             default: '0.25rem',
             type: { kind: 'length', min: 0, max: 1, step: 0.0625, unit: 'rem' },
           },
           {
-            id: 'zfb-spacing-sm',
-            cssVar: '--zfb-spacing-sm',
-            label: 'Spacing S',
+            id: 'zfbtw-hsp-sm',
+            cssVar: '--zfb-hsp-sm',
+            label: 'H-Spacing S',
             default: '0.5rem',
-            type: { kind: 'length', min: 0, max: 1.5, step: 0.0625, unit: 'rem' },
+            type: { kind: 'length', min: 0, max: 2, step: 0.0625, unit: 'rem' },
           },
-        ],
-      },
-      {
-        id: 'hsp-scale',
-        label: 'Horizontal Spacing',
-        items: [
           {
-            id: 'zfb-spacing-md',
-            cssVar: '--zfb-spacing-md',
-            label: 'Spacing M',
+            id: 'zfbtw-hsp-md',
+            cssVar: '--zfb-hsp-md',
+            label: 'H-Spacing M',
             default: '1rem',
             type: { kind: 'length', min: 0, max: 4, step: 0.0625, unit: 'rem' },
+          },
+          {
+            id: 'zfbtw-hsp-lg',
+            cssVar: '--zfb-hsp-lg',
+            label: 'H-Spacing L',
+            default: '1.5rem',
+            type: { kind: 'length', min: 0, max: 6, step: 0.0625, unit: 'rem' },
+          },
+          {
+            id: 'zfbtw-hsp-xl',
+            cssVar: '--zfb-hsp-xl',
+            label: 'H-Spacing XL',
+            default: '2rem',
+            type: { kind: 'length', min: 0, max: 8, step: 0.125, unit: 'rem' },
           },
         ],
       },
       {
         id: 'vsp-scale',
-        label: 'Vertical Spacing',
+        label: 'Vertical spacing',
         items: [
           {
-            id: 'zfb-spacing-lg',
-            cssVar: '--zfb-spacing-lg',
-            label: 'Spacing L',
-            default: '2rem',
+            id: 'zfbtw-vsp-2xs',
+            cssVar: '--zfb-vsp-2xs',
+            label: 'V-Spacing 2XS',
+            default: '0.25rem',
+            type: { kind: 'length', min: 0, max: 1, step: 0.0625, unit: 'rem' },
+          },
+          {
+            id: 'zfbtw-vsp-xs',
+            cssVar: '--zfb-vsp-xs',
+            label: 'V-Spacing XS',
+            default: '0.5rem',
+            type: { kind: 'length', min: 0, max: 2, step: 0.0625, unit: 'rem' },
+          },
+          {
+            id: 'zfbtw-vsp-sm',
+            cssVar: '--zfb-vsp-sm',
+            label: 'V-Spacing S',
+            default: '0.75rem',
+            type: { kind: 'length', min: 0, max: 2, step: 0.0625, unit: 'rem' },
+          },
+          {
+            id: 'zfbtw-vsp-md',
+            cssVar: '--zfb-vsp-md',
+            label: 'V-Spacing M',
+            default: '1rem',
+            type: { kind: 'length', min: 0, max: 4, step: 0.0625, unit: 'rem' },
+          },
+          {
+            id: 'zfbtw-vsp-lg',
+            cssVar: '--zfb-vsp-lg',
+            label: 'V-Spacing L',
+            default: '1.75rem',
             type: { kind: 'length', min: 0, max: 6, step: 0.0625, unit: 'rem' },
+          },
+          {
+            id: 'zfbtw-vsp-xl',
+            cssVar: '--zfb-vsp-xl',
+            label: 'V-Spacing XL',
+            default: '2.5rem',
+            type: { kind: 'length', min: 0, max: 8, step: 0.125, unit: 'rem' },
+          },
+          {
+            id: 'zfbtw-vsp-2xl',
+            cssVar: '--zfb-vsp-2xl',
+            label: 'V-Spacing 2XL',
+            default: '3.5rem',
+            type: { kind: 'length', min: 0, max: 10, step: 0.25, unit: 'rem' },
           },
         ],
       },
@@ -83,45 +147,52 @@ export const defaultTabs: readonly TabConfig[] = [
     tiers: [
       {
         id: 'raw',
-        label: 'Type Scale',
+        label: 'Font scale',
         items: [
           {
-            id: 'zfb-scale-xs',
+            id: 'zfbtw-scale-xs',
             cssVar: '--zfb-scale-xs',
             label: 'Scale XS',
             default: '0.75rem',
             type: { kind: 'length', min: 0.5, max: 2, step: 0.0625, unit: 'rem' },
           },
           {
-            id: 'zfb-scale-sm',
+            id: 'zfbtw-scale-sm',
             cssVar: '--zfb-scale-sm',
             label: 'Scale SM',
             default: '0.875rem',
             type: { kind: 'length', min: 0.5, max: 2, step: 0.0625, unit: 'rem' },
           },
           {
-            id: 'zfb-scale-base',
+            id: 'zfbtw-scale-base',
             cssVar: '--zfb-scale-base',
             label: 'Scale Base',
             default: '1rem',
             type: { kind: 'length', min: 0.5, max: 2, step: 0.0625, unit: 'rem' },
           },
           {
-            id: 'zfb-scale-lg',
+            id: 'zfbtw-scale-md',
+            cssVar: '--zfb-scale-md',
+            label: 'Scale MD',
+            default: '1.125rem',
+            type: { kind: 'length', min: 0.5, max: 2.5, step: 0.0625, unit: 'rem' },
+          },
+          {
+            id: 'zfbtw-scale-lg',
             cssVar: '--zfb-scale-lg',
             label: 'Scale LG',
             default: '1.25rem',
             type: { kind: 'length', min: 0.75, max: 3, step: 0.0625, unit: 'rem' },
           },
           {
-            id: 'zfb-scale-xl',
+            id: 'zfbtw-scale-xl',
             cssVar: '--zfb-scale-xl',
             label: 'Scale XL',
             default: '1.75rem',
             type: { kind: 'length', min: 1, max: 4, step: 0.0625, unit: 'rem' },
           },
           {
-            id: 'zfb-scale-2xl',
+            id: 'zfbtw-scale-2xl',
             cssVar: '--zfb-scale-2xl',
             label: 'Scale 2XL',
             default: '2.5rem',
@@ -131,24 +202,51 @@ export const defaultTabs: readonly TabConfig[] = [
       },
       {
         id: 'semantic',
-        label: 'Semantic Roles',
+        label: 'Font role',
         // Each item's value is the id of a raw-tier item; emitted as var(--cssVar).
+        // Concrete-purpose role names — see header comment for the tier 2 contract.
         referencesTier: 'raw',
         items: [
           {
-            id: 'zfb-text-base',
-            cssVar: '--zfb-text-base',
-            label: 'Body Text',
-            // References the raw item id 'zfb-scale-base'
-            default: 'zfb-scale-base',
+            id: 'zfbtw-text-page-title',
+            cssVar: '--zfb-text-page-title',
+            label: 'Page Title',
+            default: 'zfbtw-scale-xl',
             type: { kind: 'text' },
           },
           {
-            id: 'zfb-text-heading',
-            cssVar: '--zfb-text-heading',
-            label: 'Heading Text',
-            // References the raw item id 'zfb-scale-xl'
-            default: 'zfb-scale-xl',
+            id: 'zfbtw-text-section-title',
+            cssVar: '--zfb-text-section-title',
+            label: 'Section Title',
+            default: 'zfbtw-scale-lg',
+            type: { kind: 'text' },
+          },
+          {
+            id: 'zfbtw-text-subsection-title',
+            cssVar: '--zfb-text-subsection-title',
+            label: 'Sub-section / Table Header',
+            default: 'zfbtw-scale-md',
+            type: { kind: 'text' },
+          },
+          {
+            id: 'zfbtw-text-body',
+            cssVar: '--zfb-text-body',
+            label: 'Body',
+            default: 'zfbtw-scale-base',
+            type: { kind: 'text' },
+          },
+          {
+            id: 'zfbtw-text-helper',
+            cssVar: '--zfb-text-helper',
+            label: 'Helper / Caption',
+            default: 'zfbtw-scale-sm',
+            type: { kind: 'text' },
+          },
+          {
+            id: 'zfbtw-text-annotation',
+            cssVar: '--zfb-text-annotation',
+            label: 'Annotation',
+            default: 'zfbtw-scale-xs',
             type: { kind: 'text' },
           },
         ],
@@ -164,42 +262,42 @@ export const defaultTabs: readonly TabConfig[] = [
         label: 'Size',
         items: [
           {
-            id: 'zfb-size-sidenav-w',
+            id: 'zfbtw-size-sidenav-w',
             cssVar: '--zfb-size-sidenav-w',
             label: 'Sidenav Width',
             default: '14rem',
             type: { kind: 'length', min: 8, max: 24, step: 0.5, unit: 'rem' },
           },
           {
-            id: 'zfb-size-header-h',
+            id: 'zfbtw-size-header-h',
             cssVar: '--zfb-size-header-h',
             label: 'Header Height',
             default: '3.5rem',
             type: { kind: 'length', min: 2, max: 6, step: 0.25, unit: 'rem' },
           },
           {
-            id: 'zfb-size-avatar-sm',
+            id: 'zfbtw-size-avatar-sm',
             cssVar: '--zfb-size-avatar-sm',
             label: 'Avatar SM',
             default: '2rem',
             type: { kind: 'length', min: 1, max: 4, step: 0.25, unit: 'rem' },
           },
           {
-            id: 'zfb-size-avatar-md',
+            id: 'zfbtw-size-avatar-md',
             cssVar: '--zfb-size-avatar-md',
             label: 'Avatar MD',
             default: '2.5rem',
             type: { kind: 'length', min: 1, max: 5, step: 0.25, unit: 'rem' },
           },
           {
-            id: 'zfb-size-icon-sm',
+            id: 'zfbtw-size-icon-sm',
             cssVar: '--zfb-size-icon-sm',
             label: 'Icon SM',
             default: '1rem',
             type: { kind: 'length', min: 0.5, max: 2, step: 0.0625, unit: 'rem' },
           },
           {
-            id: 'zfb-size-icon-md',
+            id: 'zfbtw-size-icon-md',
             cssVar: '--zfb-size-icon-md',
             label: 'Icon MD',
             default: '1.25rem',
@@ -212,7 +310,7 @@ export const defaultTabs: readonly TabConfig[] = [
         label: 'Radius',
         items: [
           {
-            id: 'zfb-radius',
+            id: 'zfbtw-radius',
             cssVar: '--zfb-radius',
             label: 'Border Radius',
             default: '0.5rem',
@@ -240,37 +338,36 @@ export const defaultTabs: readonly TabConfig[] = [
         id: 'palette',
         label: 'Palette',
         items: [
-          { id: 'zfb-palette-0',  cssVar: '--zfb-palette-0',  label: 'Palette 0',  default: '#1e1e1e', type: { kind: 'color' as const } },
-          { id: 'zfb-palette-1',  cssVar: '--zfb-palette-1',  label: 'Palette 1',  default: '#2d6cdf', type: { kind: 'color' as const } },
-          { id: 'zfb-palette-2',  cssVar: '--zfb-palette-2',  label: 'Palette 2',  default: '#3aa676', type: { kind: 'color' as const } },
-          { id: 'zfb-palette-3',  cssVar: '--zfb-palette-3',  label: 'Palette 3',  default: '#d97706', type: { kind: 'color' as const } },
-          { id: 'zfb-palette-4',  cssVar: '--zfb-palette-4',  label: 'Palette 4',  default: '#9b5de5', type: { kind: 'color' as const } },
-          { id: 'zfb-palette-5',  cssVar: '--zfb-palette-5',  label: 'Palette 5',  default: '#e63946', type: { kind: 'color' as const } },
-          { id: 'zfb-palette-6',  cssVar: '--zfb-palette-6',  label: 'Palette 6',  default: '#1d3557', type: { kind: 'color' as const } },
-          { id: 'zfb-palette-7',  cssVar: '--zfb-palette-7',  label: 'Palette 7',  default: '#06b6d4', type: { kind: 'color' as const } },
-          { id: 'zfb-palette-8',  cssVar: '--zfb-palette-8',  label: 'Palette 8',  default: '#475569', type: { kind: 'color' as const } },
-          { id: 'zfb-palette-9',  cssVar: '--zfb-palette-9',  label: 'Palette 9',  default: '#94a3b8', type: { kind: 'color' as const } },
-          { id: 'zfb-palette-10', cssVar: '--zfb-palette-10', label: 'Palette 10', default: '#cbd5e1', type: { kind: 'color' as const } },
-          { id: 'zfb-palette-11', cssVar: '--zfb-palette-11', label: 'Palette 11', default: '#e2e8f0', type: { kind: 'color' as const } },
-          { id: 'zfb-palette-12', cssVar: '--zfb-palette-12', label: 'Palette 12', default: '#f1f5f9', type: { kind: 'color' as const } },
-          { id: 'zfb-palette-13', cssVar: '--zfb-palette-13', label: 'Palette 13', default: '#fef3c7', type: { kind: 'color' as const } },
-          { id: 'zfb-palette-14', cssVar: '--zfb-palette-14', label: 'Palette 14', default: '#bbf7d0', type: { kind: 'color' as const } },
-          { id: 'zfb-palette-15', cssVar: '--zfb-palette-15', label: 'Palette 15', default: '#f8fafc', type: { kind: 'color' as const } },
+          { id: 'zfbtw-palette-0',  cssVar: '--zfb-palette-0',  label: 'Palette 0',  default: '#1e1e1e', type: { kind: 'color' as const } },
+          { id: 'zfbtw-palette-1',  cssVar: '--zfb-palette-1',  label: 'Palette 1',  default: '#2d6cdf', type: { kind: 'color' as const } },
+          { id: 'zfbtw-palette-2',  cssVar: '--zfb-palette-2',  label: 'Palette 2',  default: '#3aa676', type: { kind: 'color' as const } },
+          { id: 'zfbtw-palette-3',  cssVar: '--zfb-palette-3',  label: 'Palette 3',  default: '#d97706', type: { kind: 'color' as const } },
+          { id: 'zfbtw-palette-4',  cssVar: '--zfb-palette-4',  label: 'Palette 4',  default: '#9b5de5', type: { kind: 'color' as const } },
+          { id: 'zfbtw-palette-5',  cssVar: '--zfb-palette-5',  label: 'Palette 5',  default: '#e63946', type: { kind: 'color' as const } },
+          { id: 'zfbtw-palette-6',  cssVar: '--zfb-palette-6',  label: 'Palette 6',  default: '#1d3557', type: { kind: 'color' as const } },
+          { id: 'zfbtw-palette-7',  cssVar: '--zfb-palette-7',  label: 'Palette 7',  default: '#06b6d4', type: { kind: 'color' as const } },
+          { id: 'zfbtw-palette-8',  cssVar: '--zfb-palette-8',  label: 'Palette 8',  default: '#475569', type: { kind: 'color' as const } },
+          { id: 'zfbtw-palette-9',  cssVar: '--zfb-palette-9',  label: 'Palette 9',  default: '#94a3b8', type: { kind: 'color' as const } },
+          { id: 'zfbtw-palette-10', cssVar: '--zfb-palette-10', label: 'Palette 10', default: '#cbd5e1', type: { kind: 'color' as const } },
+          { id: 'zfbtw-palette-11', cssVar: '--zfb-palette-11', label: 'Palette 11', default: '#e2e8f0', type: { kind: 'color' as const } },
+          { id: 'zfbtw-palette-12', cssVar: '--zfb-palette-12', label: 'Palette 12', default: '#f1f5f9', type: { kind: 'color' as const } },
+          { id: 'zfbtw-palette-13', cssVar: '--zfb-palette-13', label: 'Palette 13', default: '#fef3c7', type: { kind: 'color' as const } },
+          { id: 'zfbtw-palette-14', cssVar: '--zfb-palette-14', label: 'Palette 14', default: '#bbf7d0', type: { kind: 'color' as const } },
+          { id: 'zfbtw-palette-15', cssVar: '--zfb-palette-15', label: 'Palette 15', default: '#f8fafc', type: { kind: 'color' as const } },
         ],
       },
       {
         id: 'semantic',
         label: 'Semantic',
-        // Semantic items reference the palette tier — each default is a palette item id.
         referencesTier: 'palette',
         items: [
-          { id: 'primary', cssVar: '--zfb-color-primary', label: '--zfb-color-primary', default: 'zfb-palette-1', type: { kind: 'color' as const } },
-          { id: 'accent',  cssVar: '--zfb-color-accent',  label: '--zfb-color-accent',  default: 'zfb-palette-3', type: { kind: 'color' as const } },
-          { id: 'surface', cssVar: '--zfb-color-surface', label: '--zfb-color-surface', default: 'zfb-palette-0', type: { kind: 'color' as const } },
-          { id: 'muted',   cssVar: '--zfb-color-muted',   label: '--zfb-color-muted',   default: 'zfb-palette-8', type: { kind: 'color' as const } },
-          { id: 'success', cssVar: '--zfb-color-success', label: '--zfb-color-success', default: 'zfb-palette-2', type: { kind: 'color' as const } },
-          { id: 'warning', cssVar: '--zfb-color-warning', label: '--zfb-color-warning', default: 'zfb-palette-3', type: { kind: 'color' as const } },
-          { id: 'danger',  cssVar: '--zfb-color-danger',  label: '--zfb-color-danger',  default: 'zfb-palette-5', type: { kind: 'color' as const } },
+          { id: 'primary', cssVar: '--zfb-color-primary', label: '--zfb-color-primary', default: 'zfbtw-palette-1', type: { kind: 'color' as const } },
+          { id: 'accent',  cssVar: '--zfb-color-accent',  label: '--zfb-color-accent',  default: 'zfbtw-palette-3', type: { kind: 'color' as const } },
+          { id: 'surface', cssVar: '--zfb-color-surface', label: '--zfb-color-surface', default: 'zfbtw-palette-0', type: { kind: 'color' as const } },
+          { id: 'muted',   cssVar: '--zfb-color-muted',   label: '--zfb-color-muted',   default: 'zfbtw-palette-8', type: { kind: 'color' as const } },
+          { id: 'success', cssVar: '--zfb-color-success', label: '--zfb-color-success', default: 'zfbtw-palette-2', type: { kind: 'color' as const } },
+          { id: 'warning', cssVar: '--zfb-color-warning', label: '--zfb-color-warning', default: 'zfbtw-palette-3', type: { kind: 'color' as const } },
+          { id: 'danger',  cssVar: '--zfb-color-danger',  label: '--zfb-color-danger',  default: 'zfbtw-palette-5', type: { kind: 'color' as const } },
         ],
       },
     ],
