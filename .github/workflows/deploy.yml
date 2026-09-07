@@ -62,6 +62,26 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # Keeps the audit fixed rather than fixed-once. The tree is clean at
+      # EVERY severity as of this commit (it was 1 critical / 7 high /
+      # 13 moderate / 4 low), so `high` is a gate with headroom, not a
+      # tolerated-debt line: a newly published moderate cannot block an
+      # unrelated PR, while the critical+high classes this repo had to clear
+      # cannot come back silently.
+      #
+      # It runs BEFORE typecheck/build so a supply-chain regression is the
+      # first thing the log shows, not a footnote after a 60 s build.
+      #
+      # NOTE: `pnpm audit` queries the registry advisory DB live, so this step
+      # can turn red on a commit that changed nothing — that is the point, but
+      # it means a red gate here is triaged by bumping the offending dep, never
+      # by lowering `--audit-level`. Two of this repo's floors are declared
+      # rather than resolved (`pnpm.overrides.hono`, and wrangler pinned exact)
+      # precisely because `--frozen-lockfile` would otherwise reinstall
+      # whatever the lockfile happened to capture, forever.
+      - name: Audit dependencies
+        run: pnpm audit --audit-level high
+
       - name: Typecheck
         run: pnpm typecheck
 
@@ -281,6 +301,10 @@ jobs:
           # `<url path>|<expected full <title> element>` per prerendered page.
           # It must stay in sync with dist/__zfb/routes.json (six routes today);
           # a zfb major bump is expected to re-verify it against a fresh build.
+          # Last re-verified at zfb 2.15.1 (the 0.1.0-next.45 -> 2.x jump):
+          # route set and all six <title> strings unchanged, and the nine
+          # assertions below were run verbatim against a local `wrangler dev`
+          # (workerd) on wrangler 4.129.0.
           #
           # Paths carry a TRAILING SLASH: `zfb build` emits directory-index
           # output (dist/prose/index.html, dist/components/data/index.html, …),
