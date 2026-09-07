@@ -1,7 +1,10 @@
 // zfb plugin: dev-apply-proxy
 //
 // Intercepts POST /api/dev/apply and forwards the request body verbatim to
-// the bin sidecar running on http://127.0.0.1:24685/apply.
+// the bin sidecar. The sidecar port comes from `scripts/ports.mjs` — the same
+// resolver package.json's launcher and playwright.config.ts read — so a
+// worktree that overrides ZDTP_PORT cannot leave this proxy pointing at the
+// default while the sidecar binds somewhere else.
 //
 // Per zfb issue #229 (fixed in commit b1049ef), devMiddleware handlers are
 // mounted under the project `base`. With `base: '/'`, the bare path
@@ -15,11 +18,14 @@
 // not invoked, so the production static output has no dependency on this
 // module or on the sidecar port.
 //
-// No npm dependencies: global `fetch` (available in Node 18+) is used to
-// forward the request. The response status and body are piped back verbatim
-// so the panel's apply-pipeline sees the same error codes the sidecar emits.
+// No npm dependencies beyond the sibling port resolver: global `fetch`
+// (available in Node 18+) is used to forward the request. The response status
+// and body are piped back verbatim so the panel's apply-pipeline sees the same
+// error codes the sidecar emits.
 
-const BIN_SIDECAR_APPLY_URL = "http://127.0.0.1:24685/apply";
+import { ZDTP_PORT } from "../scripts/ports.mjs";
+
+const BIN_SIDECAR_APPLY_URL = `http://127.0.0.1:${ZDTP_PORT}/apply`;
 
 // Cap dev-mode apply requests so a stuck sidecar doesn't hang the panel UI
 // indefinitely. 15s comfortably covers a slow scaffold rewrite.
@@ -45,12 +51,20 @@ export default {
         };
       }
 
+      // The sidecar treats a request with NO Origin header as "not allowed"
+      // (its check is `allowOrigins.includes(origin)`, and an absent origin is
+      // never in the list), so the browser's Origin has to survive this proxy
+      // hop or every dev-mode apply 403s no matter what --allow-origin says.
+      // scripts/ports.mjs puts both server origins in that list.
+      const forwardedOrigin = req.headers["origin"] ?? req.headers["Origin"];
+
       let upstreamResponse;
       try {
         upstreamResponse = await fetch(BIN_SIDECAR_APPLY_URL, {
           method: "POST",
           headers: {
             "content-type": req.headers["content-type"] ?? "application/json",
+            ...(forwardedOrigin ? { origin: forwardedOrigin } : {}),
           },
           // `req.body` is the raw request body string forwarded by zfb's
           // plugin host. Forward it verbatim — the bin sidecar expects JSON.

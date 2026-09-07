@@ -10,29 +10,35 @@
  *   1. Font scale  — tweak `--zfb-scale-base` in Font > Type Scale tier.
  *                    Consumer: `body` (font-size: var(--zfb-text-base) →
  *                    var(--zfb-scale-base)).
- *   2. Spacing     — tweak `--zfb-spacing-md` in Spacing > Horizontal Spacing.
- *                    Consumer: `.zfb-card` (padding: var(--zfb-spacing-md)).
+ *   2. Spacing     — tweak `--zfb-hsp-md` in Spacing > Horizontal spacing.
+ *                    Consumer: `.zfb-prose blockquote`
+ *                    (padding-left: var(--zfb-hsp-md), styles/global.css:456).
  *   3. Palette     — tweak `--zfb-palette-1` in Color > Palette tier.
  *                    Consumer: `.zfb-heading` (color: var(--zfb-color-primary)
  *                    → var(--zfb-palette-1)).
  *
+ * Why the spacing case targets `--zfb-hsp-md` and prose rather than
+ * `--zfb-spacing-md` and `.zfb-card`: styles/global.css declares two parallel
+ * spacing systems — `--zfb-spacing-*` (:66-69, consumed by `.zfb-card` at :246)
+ * and `--zfb-hsp-*` / `--zfb-vsp-*` (:329+, consumed by the prose rules). Only
+ * the second set is registered in `config/default-manifest.ts`, so the panel has
+ * no control for `--zfb-spacing-md` at all and this test used to time out
+ * waiting for a label that could never exist. Registering the other set instead
+ * would change what the demo showcases, which is not this spec's call to make.
+ *
  * Prerequisites
  * -------------
- *  - Preview server on port 4173 (webServer in playwright.config.ts).
- *  - The spec resets via the Reset All button so runs are idempotent.
+ *  - The preview server, started by `playwright.config.ts`'s webServer on
+ *    `PREVIEW_PORT` (default 4173).
+ *  - Each test resets the panel and sweeps its storage afterwards, so runs are
+ *    idempotent and overrides cannot leak between tests.
  *
- * Panel storage prefix: `zfb-example-tokens`
+ * Panel storage prefix: `zfb-example-tokens` (see `panel-storage.ts`)
  * Panel number input:   aria-label `${cssVar} value`
  */
 
 import { test, expect, type Page } from '@playwright/test';
-
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
-const STORAGE_PREFIX = 'zfb-example-tokens';
-const STORAGE_KEY_VISIBLE = `${STORAGE_PREFIX}:visible`;
+import { clearPanelStorage, setPanelVisibleFlag } from './panel-storage';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -40,32 +46,44 @@ const STORAGE_KEY_VISIBLE = `${STORAGE_PREFIX}:visible`;
 
 async function openPanel(page: Page): Promise<void> {
   await page.waitForLoadState('domcontentloaded');
-  await page.evaluate((key) => {
-    localStorage.setItem(key, '1');
-  }, STORAGE_KEY_VISIBLE);
+  await setPanelVisibleFlag(page);
   await page.reload();
   await page.waitForLoadState('domcontentloaded');
   await page.locator('.tokenpanel-shell').waitFor({ state: 'visible', timeout: 10_000 });
 }
 
 async function closeAndReset(page: Page): Promise<void> {
-  // Click Reset All to restore defaults before closing.
-  const resetAllBtn = page.locator('.tokenpanel-action-link', { hasText: /reset/i }).first();
-  if (await resetAllBtn.isVisible()) {
-    await resetAllBtn.click();
-    // Dismiss confirmation modal if it appears.
-    const confirmBtn = page.getByRole('button', { name: /confirm|reset now|yes/i }).first();
-    const appeared = await confirmBtn
-      .waitFor({ state: 'visible', timeout: 2_000 })
-      .then(() => true)
-      .catch(() => false);
-    if (appeared) await confirmBtn.click();
-  }
-  await page.evaluate((key) => {
-    localStorage.removeItem(key);
-  }, STORAGE_KEY_VISIBLE);
+  // Reset every override through the panel's own UI, then sweep storage as the
+  // authoritative undo.
+  //
+  // Reaching Reset through the actions popover is not a stylistic choice. From
+  // zdtp 0.5.1 the header `.tokenpanel-action-link` items are `display: none`
+  // under `@container tokenpanel (max-width: 1135px)`, and the shell measures
+  // 1024 px — so the old `.first()` always resolved to the hidden header
+  // "Reset" and the `isVisible()` guard around it skipped the click WITHOUT
+  // failing, leaking every tweak into the next test. The per-tab
+  // `.tokenpanel-tab-actions` links are visible but tab-scoped (there is no
+  // "Reset Color"), so only the popover's global Reset works from every tab.
+  // Waiting rather than guarding is deliberate: a teardown that can silently do
+  // nothing is what made this helper a no-op in the first place.
+  const menuBtn = page.locator('.tokenpanel-actions-menu-btn').first();
+  await menuBtn.waitFor({ state: 'visible', timeout: 5_000 });
+  await menuBtn.click();
+
+  const resetAll = page
+    .locator('.tokenpanel-actions-popover .tokenpanel-action-link')
+    .filter({ hasText: /^\s*Reset\s*$/ })
+    .first();
+  await resetAll.waitFor({ state: 'visible', timeout: 5_000 });
+  // At 0.5.1 this applies immediately — no confirmation step.
+  await resetAll.click();
+
+  // Close FIRST, sweep second: closing writes the panel's own keys back
+  // (`:visible` -> '0', `:autoload` -> 'auto'), so a sweep placed before the
+  // click leaves behind exactly what it is meant to remove.
   const closeBtn = page.locator('.tokenpanel-close-btn').first();
   if (await closeBtn.isVisible()) await closeBtn.click();
+  await clearPanelStorage(page);
 }
 
 // ---------------------------------------------------------------------------
@@ -110,12 +128,15 @@ test.describe('zfb example — token-tweak-style: font scale', () => {
 });
 
 // ---------------------------------------------------------------------------
-// 2. Spacing — --zfb-spacing-md → .zfb-card padding
+// 2. Spacing — --zfb-hsp-md → .zfb-prose blockquote padding-left
 // ---------------------------------------------------------------------------
 
 test.describe('zfb example — token-tweak-style: spacing', () => {
+  // The prose route, not the home route: `--zfb-hsp-md` is consumed by the
+  // prose rules (styles/global.css:456), and `.zfb-card` on the home route
+  // consumes the unregistered `--zfb-spacing-md` instead.
   test.beforeEach(async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/prose/');
     await openPanel(page);
   });
 
@@ -123,33 +144,33 @@ test.describe('zfb example — token-tweak-style: spacing', () => {
     await closeAndReset(page);
   });
 
-  test('tweaking --zfb-spacing-md updates .zfb-card computed padding', async ({ page }) => {
+  test('tweaking --zfb-hsp-md updates .zfb-prose blockquote computed padding', async ({ page }) => {
     // Open the Spacing tab.
     const spacingTab = page.getByRole('tab', { name: /spacing/i }).first();
     await spacingTab.waitFor({ state: 'visible', timeout: 5_000 });
     await spacingTab.click();
 
-    // Find the Spacing M number input.
-    // aria-label="--zfb-spacing-md value"
-    const spacingMdInput = page.getByLabel('--zfb-spacing-md value').first();
-    await spacingMdInput.waitFor({ state: 'visible', timeout: 5_000 });
+    // Find the H-Spacing M number input.
+    // aria-label="--zfb-hsp-md value"
+    const hspMdInput = page.getByLabel('--zfb-hsp-md value').first();
+    await hspMdInput.waitFor({ state: 'visible', timeout: 5_000 });
 
     // Set to 1.5 rem (default is 1 rem).
-    await spacingMdInput.fill('1.5');
-    await spacingMdInput.press('Enter');
+    await hspMdInput.fill('1.5');
+    await hspMdInput.press('Enter');
 
-    // .zfb-card has padding: var(--zfb-spacing-md).
+    // `.zfb-prose :where(blockquote)` has padding-left: var(--zfb-hsp-md).
     // After tweaking to 1.5rem the computed padding should be 24px (1.5 × 16px).
-    const card = page.locator('.zfb-card').first();
-    await card.waitFor({ state: 'visible', timeout: 5_000 });
+    const quote = page.locator('.zfb-prose blockquote').first();
+    await quote.waitFor({ state: 'visible', timeout: 5_000 });
 
     await expect
       .poll(
         async () => {
-          const el = await card.elementHandle();
+          const el = await quote.elementHandle();
           if (!el) return '';
           return await el.evaluate((node) => {
-            return window.getComputedStyle(node as Element).paddingTop;
+            return window.getComputedStyle(node as Element).paddingLeft;
           });
         },
         { timeout: 5_000, intervals: [100, 250, 500] },
