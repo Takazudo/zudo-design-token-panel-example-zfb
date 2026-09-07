@@ -2,6 +2,9 @@
 
 Demonstrates `@takazudo/zdtp` inside a [zfb (zudo-front-builder)](https://github.com/Takazudo/zudo-front-builder) project. The panel is mounted as a Preact island via zfb's `<Island>` component, and the dev-time apply pipeline is wired through a small zfb plugin's `devMiddleware` hook.
 
+Deployed to Cloudflare Workers Static Assets at
+`https://zdtp-zfb.zudolab.dev/`.
+
 ## Sibling layout
 
 This repo expects two sibling directories alongside it under the same parent:

@@ -8,3 +8,4 @@ zfb-tailwind-entry-*.css
 playwright-report/
 test-results/
 worktrees/
+.wrangler/
