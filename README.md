@@ -5,34 +5,86 @@ Demonstrates `@takazudo/zdtp` inside a [zfb (zudo-front-builder)](https://github
 Deployed to Cloudflare Workers Static Assets at
 `https://zdtp-zfb.zudolab.dev/`.
 
-## Sibling layout
-
-This repo expects two sibling directories alongside it under the same parent:
-
-```
-$HOME/repos/zdtp-ex/
-  zudo-design-token-panel/   ← @takazudo/zdtp source (pinned SHA)
-  zfb/                       ← zudo-front-builder source (pinned SHA)
-  zudo-design-token-panel-example-zfb/   ← this repo
-```
-
-The `file:../zudo-design-token-panel/packages/zudo-design-token-panel` and `file:../zfb/packages/zfb` dependencies in `package.json` resolve via this sibling layout. A plain `pnpm install` on a fresh checkout **will fail** if the siblings are not present. Use `pnpm setup:upstream` (see below) to bootstrap everything automatically.
-
-## Bootstrap (first-time setup)
+## Install
 
 ```sh
-pnpm setup:upstream
+pnpm install
 ```
 
-This script (`scripts/setup-upstream.mjs`) reads `framework-pins.json` and:
+Every dependency — `@takazudo/zdtp`, `@takazudo/zfb`, `@takazudo/zfb-runtime` —
+comes from the npm registry. There is no sibling checkout to clone and no
+bootstrap script to run.
 
-1. Clones or checks out the `zudo-design-token-panel` sibling at the pinned SHA, installs its deps, and builds the panel package.
-2. Clones or checks out the `zfb` sibling at the pinned SHA and installs its deps (required by both cargo build and example bundling).
-3. Installs the `zfb` CLI binary to `.zfb-bin/` (project-local, does not touch your global `~/.cargo/bin/zfb`).
-4. Runs `pnpm install` in this consumer.
-5. Runs `pnpm build` once to verify the setup.
+`.npmrc` carries `public-hoist-pattern[]=hono`; leave it in place. zfb 2.x
+bundles over a shadow tree whose module resolution starts at the project root,
+and without that line `zfb dev` silently serves an empty page. The comment in
+`.npmrc` has the full rationale.
 
-If a sibling is present but has uncommitted local changes, the script exits with an error pointing at the `dev-wip-package-upstream-wt-dev` workflow.
+## Ports
+
+Three ports, all resolved in exactly one place — `scripts/ports.mjs`. Override
+any of them with the matching env var:
+
+| Port    | Default | Env var        | Bound by                                                    |
+| ------- | ------- | -------------- | ----------------------------------------------------------- |
+| dev     | 44327   | `ZFB_PORT`     | `zfb dev` — the example site during `pnpm dev`               |
+| sidecar | 24685   | `ZDTP_PORT`    | `zdtp-server` — receives `/apply` POSTs, rewrites `styles/global.css` |
+| preview | 4173    | `PREVIEW_PORT` | `zfb preview` — the built site, and Playwright's `baseURL`   |
+
+The resolver rejects anything that is not a plain integer in 1–65535, and
+rejects a sidecar port that collides with either server port. `pnpm dev`,
+`pnpm preview` and Playwright's webServer all start through
+`scripts/launch.mjs`, so a bad value fails immediately with a named error
+instead of binding one port while telling another process about a different one.
+
+The sidecar is started with **both** server origins in its `--allow-origin`
+list (the flag is repeatable), so an `/apply` POST is accepted whether it came
+from the dev server or from preview.
+
+### Running concurrent worktrees on different ports
+
+`pnpm dev` does **not** kill whatever is already listening on these ports — a
+machine-wide `lsof … | xargs kill -9` used to sit at the head of this script and
+would happily destroy a sibling worktree's dev server or a Playwright run in
+progress. Give each worktree its own ports instead:
+
+```sh
+ZFB_PORT=44328 ZDTP_PORT=24686 PREVIEW_PORT=4174 pnpm dev
+```
+
+Point Playwright at the same set when testing that worktree:
+
+```sh
+ZFB_PORT=44328 ZDTP_PORT=24686 PREVIEW_PORT=4174 pnpm test:e2e
+```
+
+To test against servers you started yourself and want to keep running, pass
+`BASE_URL`. That switches Playwright to caller-managed servers and skips its own
+webServer entirely — you are then responsible for both the site **and** the
+sidecar. Pass the same `BASE_URL` and `ZDTP_PORT` to both commands: the sidecar
+derives its allowed origins from `BASE_URL` too, so omitting it there is exactly
+the CORS desync this setup exists to prevent.
+
+```sh
+# terminal 1
+BASE_URL=http://localhost:4174 ZDTP_PORT=24686 pnpm run _dev:tokens-bin
+# terminal 2
+BASE_URL=http://localhost:4174 ZDTP_PORT=24686 pnpm test:e2e
+```
+
+### `EADDRINUSE` / "port already in use"
+
+Nothing clears a stale server for you any more. When a start fails with
+`EADDRINUSE`, or `zdtp-server` reports `port … already in use`:
+
+1. Find the owner — `ss -ltnp | grep :44327` (or `lsof -ti:44327`) — and stop
+   that process yourself if it is genuinely yours. It may belong to another
+   worktree.
+2. Or just pick different ports with the env vars above.
+
+Playwright uses `reuseExistingServer: false` on purpose: preview serves a
+**built** `dist/`, so silently reusing someone else's server would test a stale
+build. Use `BASE_URL` when you deliberately want to reuse one.
 
 ## Development
 
@@ -42,8 +94,8 @@ pnpm dev
 
 This starts two processes in parallel via `concurrently`:
 
-- `zfb dev` — the zfb dev server at `http://localhost:44327`
-- `zdtp-server` — the bin sidecar at port `24685`
+- `zfb dev` — the zfb dev server at `http://localhost:44327` (`ZFB_PORT`)
+- `zdtp-server` — the bin sidecar at port `24685` (`ZDTP_PORT`)
 
 The panel is accessible from the browser console:
 
@@ -64,6 +116,19 @@ Output lands in `dist/`. Asset URLs are rooted at `/` (the configured `base`).
 ```sh
 pnpm preview
 ```
+
+Serves `dist/` on `4173` (`PREVIEW_PORT`) — the same port Playwright drives.
+
+## e2e tests
+
+```sh
+pnpm test:e2e
+```
+
+Playwright builds the site, then starts `zfb preview` **and** the `zdtp-server`
+sidecar together (`node scripts/launch.mjs test-servers`), because
+`apply-roundtrip.spec.ts` POSTs to the sidecar. That spec fails fast with an
+explicit message if the sidecar is not reachable.
 
 ## Typecheck
 
@@ -97,18 +162,24 @@ The `when="visible"` strategy defers hydration until the element is in the viewp
 
 Unlike the other three examples (astro, vite-react, next) — which proxy `/api/dev/apply` through Vite's built-in `server.proxy` mechanism — zfb exposes the `devMiddleware` plugin hook instead.
 
-The plugin at `plugins/dev-apply-proxy.mjs` registers a handler via `ctx.register(path, handler)` and forwards the POST body to the bin sidecar at `http://127.0.0.1:24685/apply`:
+The plugin at `plugins/dev-apply-proxy.mjs` registers a handler via `ctx.register(path, handler)` and forwards the POST body to the bin sidecar on `ZDTP_PORT`:
 
 ```js
 // plugins/dev-apply-proxy.mjs
+import { ZDTP_PORT } from "../scripts/ports.mjs";
+
 ctx.register(APPLY_ROUTE, async (req) => {
-  const upstream = await fetch("http://127.0.0.1:24685/apply", {
+  const upstream = await fetch(`http://127.0.0.1:${ZDTP_PORT}/apply`, {
     method: "POST",
     body: req.body,
   });
   // ...
 });
 ```
+
+The plugin imports the shared resolver directly — zfb's plugin host loads
+`.mjs` plugins through a normal dynamic ESM import, so a sibling relative
+import resolves from the plugin file (verified against zfb 2.15.1).
 
 The plugin is listed in `zfb.config.ts`:
 
