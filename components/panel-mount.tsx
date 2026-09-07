@@ -6,40 +6,68 @@
  *
  * zfb renders pages as server components by default. This file marks the
  * boundary between server-rendered HTML and the Preact island that runs in
- * the browser. Wrapping this component in `<Island when="visible">` in
- * `pages/index.tsx` defers hydration until the element scrolls into view,
- * keeping the panel adapter out of the initial critical-path JS chunk.
+ * the browser. `components/app-shell.tsx` wraps this component in
+ * `<Island when="visible" ssrFallback={null}>`, so zfb emits a
+ * `data-zfb-island-skip-ssr` placeholder at the end of `<body>` and the
+ * hydration runtime renders this component into it via an
+ * `IntersectionObserver` (threshold 0) once the placeholder intersects the
+ * viewport — never at SSR time, and never before first paint.
  *
  * Panel adapter bootstrap
  * -----------------------
- * The responsibilities mirror the Vite + React example's `src/lib/mount-panel.ts`:
- *
  *   1. `configurePanel(panelConfig)` — supplies the host's config object to
  *      the panel package's singleton BEFORE any other panel API runs. Called
  *      once per storagePrefix, gated by the `bound` flag on
  *      `window.__zudoDesignTokenPanelAdapter`.
  *   2. Console API on `window[cfg.consoleNamespace]` — exposes
  *      `showDesignPanel` / `hideDesignPanel` / `toggleDesignPanel`.
- *   3. Lazy-load gate — eagerly load the panel module when the user had it
- *      open last session (`wasVisible()`) OR has persisted token overrides
- *      (`hasPersistedOverrides()`). Either signal means the panel must boot
- *      before first paint to avoid an FOUT.
+ *   3. Eager-load gate — dynamically import the panel module when any
+ *      persisted signal says the panel was in use.
  *   4. `reapplyPersistedOverrides()` — called immediately after
- *      `configurePanel` so persisted overrides land before the first paint.
+ *      `configurePanel` so persisted overrides land as soon as the module
+ *      resolves.
  *
- * Storage-key formatters
- * ----------------------
- * `storageKey_visible` and `storageKey_stateV2` are replicated here
- * (rather than imported from the package) because they live in an internal
- * module not on the public surface. The formatters are trivial 1-line string
- * concatenations. The canonical definitions in the package source MUST match:
+ * What the eager-load gate does — and does NOT — buy in THIS host
+ * ---------------------------------------------------------------
+ * The vite-react and Next hosts run their equivalent gate from the entry
+ * script, so a hit there restores the user's tweaks before the first paint
+ * and the gate is an FOUT defence. That reasoning does NOT transfer here.
+ * Under `when="visible"` this whole file is deferred until after paint by
+ * construction, so a returning user with saved tweaks always sees one frame
+ * of stylesheet defaults. The gate cannot close that window, and no amount
+ * of widening it would.
  *
- *   storageKey_visible(cfg) -> `${cfg.storagePrefix}:visible`   (literal `:`)
- *   storageKey_stateV2(cfg) -> `${cfg.storagePrefix}-state-v2`  (literal `-`)
+ * What it decides here is whether the panel chunk is fetched *at all*. A
+ * visitor with no panel signals never downloads it; a user who had the panel
+ * open, armed a closed-shell feature, or saved overrides gets it restored on
+ * hydration without having to call a `window.<ns>.*` helper from the console.
+ * That is why the gate still has to be exhaustive: a missed signal is not a
+ * cosmetic flash here, it is a feature that silently never comes back.
  *
- * Note the asymmetry: the visible-key uses `:` while every other derived key
- * uses `-`. It is a historical artifact preserved for storage-key continuity —
- * see the comment on `storageKey_visible` in the package.
+ * Eager-load signals come from the package, never from this file
+ * -------------------------------------------------------------
+ * The gate reads `@takazudo/zdtp/constants` — a zero-import sub-entry
+ * carrying only the signal registry (~1 KB), so importing it statically does
+ * not drag the panel bundle into this island's chunk, which is the entire
+ * point of the dynamic import in `loadPanelModule`.
+ *
+ * This file used to hard-code the two key formatters instead:
+ *
+ *   `${storagePrefix}:visible`   and   `${storagePrefix}-state-v2`
+ *
+ * The `-state-v2` half was a latent bug. The package migrates an older state
+ * envelope forward (v1/v2 -> v3 -> v4) and then DELETES the superseded key,
+ * so the moment a user's persisted overrides were migrated past v2 the probe
+ * read `null` and the panel silently stopped being restored — for exactly the
+ * users who had tweaks saved. `READABLE_STATE_KEY_SUFFIXES` is the package's
+ * single registry of the versions its loader can still read, so probing it
+ * cannot go stale again.
+ *
+ * `EAGER_LOAD_GATE_KEY_SUFFIXES` covers the flag signals the same way, and is
+ * wider than the `:visible` flag this file used to check alone. `:visible`
+ * alone is demonstrably insufficient: opening the panel writes
+ * `:autoload="auto"` and closing never clears it, while `:visible` goes to
+ * `'0'` — so a visible-only gate leaves autoload unrestored.
  *
  * Returns `null` — the panel adapter appends its own DOM root outside the
  * Preact tree; this component owns no DOM of its own.
@@ -47,6 +75,10 @@
 
 import { useEffect } from 'preact/hooks';
 import type { PanelConfig } from '@takazudo/zdtp/astro';
+import {
+  EAGER_LOAD_GATE_KEY_SUFFIXES,
+  READABLE_STATE_KEY_SUFFIXES,
+} from '@takazudo/zdtp/constants';
 import { panelConfig } from '../config/panel-config';
 
 // Mirrors the panel module's main entry shape we lazy-import below.
@@ -73,16 +105,6 @@ interface AdapterWindow extends Window {
   [namespace: string]: unknown;
 }
 
-function storageKey_visible(cfg: PanelConfig): string {
-  // Mirrors packages/zudo-design-token-panel/src/config/panel-config.ts —
-  // the literal `:` separator (NOT `-`) is intentional and historical.
-  return `${cfg.storagePrefix}:visible`;
-}
-
-function storageKey_stateV2(cfg: PanelConfig): string {
-  return `${cfg.storagePrefix}-state-v2`;
-}
-
 function getAdapterStateMap(win: AdapterWindow): AdapterStateMap {
   if (!win.__zudoDesignTokenPanelAdapter) {
     win.__zudoDesignTokenPanelAdapter = {};
@@ -100,20 +122,82 @@ function getAdapterState(win: AdapterWindow, key: string): DesignTokenPanelAdapt
   return state;
 }
 
-function wasVisible(visibleKey: string): boolean {
+/** Read one key, treating an unavailable store as an absent value. */
+function readStorageItem(key: string): string | null {
   try {
-    return window.localStorage.getItem(visibleKey) === '1';
+    return window.localStorage.getItem(key);
   } catch {
-    return false;
+    return null;
   }
 }
 
-function hasPersistedOverrides(stateV2Key: string): boolean {
-  try {
-    return window.localStorage.getItem(stateV2Key) !== null;
-  } catch {
-    return false;
+/**
+ * True when any of the package's fixed eager-load flags holds one of its
+ * accepted values. Presence alone never activates a flag — the registry
+ * enumerates the values that count, so a stale `'0'` does not force a load.
+ */
+function hasActiveFlagSignal(cfg: PanelConfig): boolean {
+  for (const [suffix, rule] of Object.entries(EAGER_LOAD_GATE_KEY_SUFFIXES)) {
+    // `requiredConfig` names a PanelConfig property that must be configured
+    // for the flag to mean anything — a stray `-domtweaker-enabled` is inert
+    // on this host, which passes no `domTweaker`.
+    if (rule.requiredConfig !== null && cfg[rule.requiredConfig] === undefined) {
+      continue;
+    }
+    const value = readStorageItem(cfg.storagePrefix + suffix);
+    if (value !== null && (rule.acceptedValues as readonly string[]).includes(value)) {
+      return true;
+    }
   }
+  return false;
+}
+
+/**
+ * Apply `EAGER_LOAD_GATE_STATE_FAMILY.valueRules` to one raw envelope:
+ *
+ *   blank (absent or empty string) -> no      JSON null              -> no
+ *   empty object / empty array     -> no      any other parsed value -> yes
+ *   malformed JSON                 -> yes
+ *
+ * Malformed JSON fails OPEN deliberately: a parse failure means the panel
+ * must still load so it can migrate or reject the payload, rather than
+ * stranding the user with corrupt state they can never reach.
+ *
+ * Presence alone is not enough because `clearPersistedState()` removes keys
+ * rather than writing `{}` — an empty envelope is foreign or hand-written
+ * data, not a user's saved tweaks.
+ */
+function isActiveStateEnvelope(raw: string | null): boolean {
+  // An empty string is a blank slot, not corrupt data — `JSON.parse('')`
+  // throws, but there is nothing here to migrate.
+  if (raw === null || raw === '') return false;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return true;
+  }
+  if (parsed === null) return false;
+  if (Array.isArray(parsed)) return parsed.length > 0;
+  if (typeof parsed === 'object') return Object.keys(parsed).length > 0;
+  return true;
+}
+
+/**
+ * True when any state version the CURRENT loader can read holds a non-empty
+ * envelope.
+ *
+ * Each complete key is built from the literal prefix instead of enumerating
+ * `localStorage`, which keeps sibling instances (`${otherPrefix}-state-v4`)
+ * out and makes host-supplied regex characters inert.
+ */
+function hasPersistedOverrides(cfg: PanelConfig): boolean {
+  for (const suffix of Object.values(READABLE_STATE_KEY_SUFFIXES)) {
+    if (isActiveStateEnvelope(readStorageItem(cfg.storagePrefix + suffix))) {
+      return true;
+    }
+  }
+  return false;
 }
 
 async function loadPanelModule(state: DesignTokenPanelAdapterState) {
@@ -171,10 +255,13 @@ function mountPanel(): void {
   if (state.bound) return;
   state.bound = true;
 
-  const visibleKey = storageKey_visible(cfg);
-  const stateV2Key = storageKey_stateV2(cfg);
-  if (wasVisible(visibleKey) || hasPersistedOverrides(stateV2Key)) {
-    void loadPanelModule(state);
+  if (hasActiveFlagSignal(cfg) || hasPersistedOverrides(cfg)) {
+    // Fire-and-forget by design, but with the rejection handled: nothing
+    // awaits this promise, and an unhandled rejection from a failed chunk
+    // load fails the whole run in a consumer's test runner.
+    void loadPanelModule(state).catch((err: unknown) => {
+      console.error('[design-token-panel] Eager panel-module load failed.', err);
+    });
   }
 }
 
