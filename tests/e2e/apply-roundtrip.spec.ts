@@ -45,6 +45,9 @@ const APPLY_URL = `http://127.0.0.1:${ZDTP_PORT}/apply`;
 // reason: the sidecar compares this verbatim against its --allow-origin list,
 // which scripts/ports.mjs derives from the same BROWSER_ORIGIN.
 const ORIGIN = BROWSER_ORIGIN;
+// Kept comfortably under Playwright's 30 s local hook timeout so a slow sidecar
+// start surfaces as the named error below, never as a bare hook timeout.
+const SIDECAR_READY_TIMEOUT_MS = 15_000;
 
 async function readTokenValue(cssVar: string): Promise<string> {
   const css = await readFile(TOKENS_PATH, 'utf-8');
@@ -84,12 +87,24 @@ test.describe('zfb example — apply pipeline round-trip', () => {
     // Fail fast and by name rather than surfacing a bare ECONNREFUSED from the
     // first apply POST: without the sidecar this spec is not "failing", it is
     // un-runnable, and the caller needs to be told which process is missing.
-    const reachable = await fetch(APPLY_URL, {
-      method: 'OPTIONS',
-      headers: { Origin: ORIGIN },
-    })
-      .then(() => true)
-      .catch(() => false);
+    //
+    // Poll rather than probe once: Playwright's webServer waits only on
+    // PREVIEW_PORT, and `launch.mjs test-servers` brings the sidecar up in
+    // parallel with the preview server. A single-shot probe fires the moment
+    // the preview port accepts a connection and would report a still-booting
+    // sidecar as a missing one.
+    const deadline = Date.now() + SIDECAR_READY_TIMEOUT_MS;
+    let reachable = false;
+    for (;;) {
+      reachable = await fetch(APPLY_URL, {
+        method: 'OPTIONS',
+        headers: { Origin: ORIGIN },
+      })
+        .then(() => true)
+        .catch(() => false);
+      if (reachable || Date.now() >= deadline) break;
+      await new Promise((done) => setTimeout(done, 250));
+    }
     if (!reachable) {
       throw new Error(
         `zdtp-server sidecar is not reachable at ${APPLY_URL}. ` +

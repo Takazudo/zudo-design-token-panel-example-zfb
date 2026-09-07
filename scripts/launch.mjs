@@ -18,7 +18,12 @@ import { fileURLToPath } from 'node:url';
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const bin = (name) => resolve(projectRoot, 'node_modules', '.bin', name);
-const selfTarget = (target) => `node ${resolve(projectRoot, 'scripts', 'launch.mjs')} ${target}`;
+// `concurrently` hands each entry to a shell, so the path has to be quoted —
+// a checkout under a directory with a space (or any shell metacharacter) would
+// otherwise split into two bogus argv entries and `pnpm dev` would die with
+// "Cannot find module".
+const selfTarget = (target) =>
+  `node ${JSON.stringify(resolve(projectRoot, 'scripts', 'launch.mjs'))} ${target}`;
 
 let ports;
 try {

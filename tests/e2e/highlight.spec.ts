@@ -65,11 +65,13 @@ async function openPanel(page: Page): Promise<void> {
  * and the 0.4.15 UI preference keys behind.
  */
 async function closePanel(page: Page): Promise<void> {
-  await clearPanelStorage(page);
-  // Click the close button if it exists.
+  // Close FIRST, sweep second. Closing the panel writes its own keys back
+  // (`:visible` -> '0', `:autoload` -> 'auto'), so sweeping before the click
+  // leaves exactly the entries this helper promises to remove.
   const closeBtn = page.locator('.tokenpanel-close-btn').first();
   const isVisible = await closeBtn.isVisible();
   if (isVisible) await closeBtn.click();
+  await clearPanelStorage(page);
 }
 
 // ---------------------------------------------------------------------------

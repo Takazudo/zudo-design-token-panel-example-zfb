@@ -202,7 +202,7 @@ function hasPersistedOverrides(cfg: PanelConfig): boolean {
 
 async function loadPanelModule(state: DesignTokenPanelAdapterState) {
   if (state.modulePromise === null) {
-    state.modulePromise = import('@takazudo/zdtp').then((mod) => {
+    const pending = import('@takazudo/zdtp').then((mod) => {
       // Configure FIRST — every other panel API reads getPanelConfig() and
       // must observe the host's intended values, not the package sentinel.
       mod.configurePanel(panelConfig);
@@ -216,6 +216,15 @@ async function loadPanelModule(state: DesignTokenPanelAdapterState) {
       }
       return mod;
     });
+    // Never cache a REJECTED import. One failed chunk fetch (flaky network,
+    // a stale hashed asset after a redeploy) would otherwise pin the rejected
+    // promise for the page lifetime, so every later
+    // `window.<ns>.showDesignPanel()` would reject too and the panel could
+    // never be recovered without a reload. Dropping it lets the next call retry.
+    void pending.catch(() => {
+      if (state.modulePromise === pending) state.modulePromise = null;
+    });
+    state.modulePromise = pending;
   }
   return state.modulePromise;
 }

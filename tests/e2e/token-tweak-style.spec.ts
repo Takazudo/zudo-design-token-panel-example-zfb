@@ -78,9 +78,12 @@ async function closeAndReset(page: Page): Promise<void> {
   // At 0.5.1 this applies immediately — no confirmation step.
   await resetAll.click();
 
-  await clearPanelStorage(page);
+  // Close FIRST, sweep second: closing writes the panel's own keys back
+  // (`:visible` -> '0', `:autoload` -> 'auto'), so a sweep placed before the
+  // click leaves behind exactly what it is meant to remove.
   const closeBtn = page.locator('.tokenpanel-close-btn').first();
   if (await closeBtn.isVisible()) await closeBtn.click();
+  await clearPanelStorage(page);
 }
 
 // ---------------------------------------------------------------------------
