@@ -9,11 +9,9 @@
  *
  * Prerequisites
  * -------------
- *  - Preview server on port 4173 (started by `playwright.config.ts`
- *    webServer: `pnpm run build && pnpm exec zfb preview --port 4173`).
- *
- * webServer MUST use preview, NOT dev. zfb dev does NOT inject the islands
- * script tag so `window.zfb` is never defined. See playwright.config.ts.
+ *  - The preview server, started by `playwright.config.ts`'s webServer on
+ *    `PREVIEW_PORT` (default 4173). See that config for why the harness
+ *    builds and previews rather than running `zfb dev`.
  *
  * Route inventory (6 routes):
  *   /                        → Home
@@ -23,18 +21,16 @@
  *   /components/widgets/     → Interactive widgets
  *   /components/data/        → Data & media
  *
- * Panel storage prefix: `zfb-example-tokens`
+ * Panel storage prefix: `zfb-example-tokens` (see `panel-storage.ts`)
  * Console namespace:    `window.zfb`
  */
 
 import { test, expect, type Page } from '@playwright/test';
+import { clearPanelStorage, setPanelVisibleFlag } from './panel-storage';
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
-
-const STORAGE_PREFIX = 'zfb-example-tokens';
-const STORAGE_KEY_VISIBLE = `${STORAGE_PREFIX}:visible`;
 
 // Primary routes to smoke-test panel toggle.
 const PRIMARY_ROUTES = [
@@ -56,9 +52,7 @@ const PRIMARY_ROUTES = [
  */
 async function openPanel(page: Page): Promise<void> {
   await page.waitForLoadState('domcontentloaded');
-  await page.evaluate((key) => {
-    localStorage.setItem(key, '1');
-  }, STORAGE_KEY_VISIBLE);
+  await setPanelVisibleFlag(page);
   await page.reload();
   await page.waitForLoadState('domcontentloaded');
   // Wait for the panel shell to appear.
@@ -66,12 +60,12 @@ async function openPanel(page: Page): Promise<void> {
 }
 
 /**
- * Close the panel and clear the visible flag so subsequent tests start clean.
+ * Close the panel and sweep every panel-owned storage key so subsequent tests
+ * start clean — not just the visible flag, which leaves `-state-*` overrides
+ * and the 0.4.15 UI preference keys behind.
  */
 async function closePanel(page: Page): Promise<void> {
-  await page.evaluate((key) => {
-    localStorage.removeItem(key);
-  }, STORAGE_KEY_VISIBLE);
+  await clearPanelStorage(page);
   // Click the close button if it exists.
   const closeBtn = page.locator('.tokenpanel-close-btn').first();
   const isVisible = await closeBtn.isVisible();
@@ -84,14 +78,33 @@ async function closePanel(page: Page): Promise<void> {
 
 test.describe('zfb example — panel toggle on primary routes', () => {
   for (const route of PRIMARY_ROUTES) {
-    test(`${route.label}: panel opens and shows Design Tokens heading`, async ({ page }) => {
+    test(`${route.label}: panel opens and renders its header`, async ({ page }) => {
       await page.goto(route.path);
       await openPanel(page);
 
-      // The panel header title is "Design Tokens".
+      // Assert the structural fact — the panel opened and its header rendered
+      // — not the brand string inside it. The title is a literal hard-coded by
+      // @takazudo/zdtp ("Design Tokens" through 0.4.x, "zdtp" from 0.5.1), so
+      // matching it couples this spec to a package-owned name that has already
+      // changed once under us.
       const title = page.locator('.tokenpanel-title');
       await expect(title).toBeVisible({ timeout: 5_000 });
-      await expect(title).toHaveText(/Design Tokens/i);
+      await expect(title).toHaveText(/\S/);
+
+      // The console namespace IS host-controlled (`consoleNamespace: 'zfb'` in
+      // config/panel-config.ts), so it is the part worth pinning by name.
+      await expect
+        .poll(
+          () =>
+            page.evaluate(() => {
+              const ns = (window as unknown as Record<string, unknown>).zfb as
+                | Record<string, unknown>
+                | undefined;
+              return typeof ns?.toggleDesignPanel;
+            }),
+          { timeout: 5_000 },
+        )
+        .toBe('function');
 
       await closePanel(page);
     });
