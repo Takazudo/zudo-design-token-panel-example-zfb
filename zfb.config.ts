@@ -28,7 +28,8 @@ import { defineConfig } from "@takazudo/zfb/config";
  *
  * Deploy `base`
  * -------------
- * `base: '/'` deploys this example at the Cloudflare Pages project root.
+ * `base: '/'` deploys this example at the root of its Workers Static Assets
+ * custom domain (`zdtp-zfb.zudolab.dev`).
  * zfb applies this prefix to every emitted asset URL and to the dev server's
  * served paths, so all links resolve correctly from the repo root.
  */
