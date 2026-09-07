@@ -254,9 +254,32 @@ jobs:
           # file is the interface wrangler provides for CI.
           WRANGLER_OUTPUT_FILE_PATH: ${{ runner.temp }}/wrangler-output.ndjson
         run: |
+          # A Worker only comes into existence on the first `wrangler deploy`,
+          # which runs on push to main — so on every PR opened BEFORE that
+          # first deploy (this migration's own PR, and any PR against a
+          # freshly created Worker) `versions upload` exits non-zero with
+          # "You cannot upload a new version of a Worker that does not yet
+          # exist." That is an expected bootstrap state, not a broken PR.
+          #
+          # Match that ONE message and soft-skip it; every other non-zero exit
+          # still fails the job, so a genuine upload failure is never masked.
+          set +e
+          upload_log="${RUNNER_TEMP}/wrangler-upload.log"
           pnpm exec wrangler versions upload \
             --preview-alias "pr-${PR_NUMBER}" \
-            --message "Preview for PR #${PR_NUMBER}"
+            --message "Preview for PR #${PR_NUMBER}" 2>&1 | tee "$upload_log"
+          upload_rc=${PIPESTATUS[0]}
+          set -e
+
+          if [ "$upload_rc" -ne 0 ]; then
+            if grep -qF 'Worker that does not yet exist' "$upload_log"; then
+              echo "::notice::Worker does not exist yet — it is created by the first 'wrangler deploy' on main. Skipping the preview upload, routing assertions and PR comment for this run."
+              echo "preview_url=" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            echo "::error::wrangler versions upload failed (exit ${upload_rc}) for a reason other than a not-yet-created Worker."
+            exit "$upload_rc"
+          fi
 
           # Guard with `[ -s ... ]` before jq: the runner's default
           # `bash -eo pipefail` means a missing/empty file would make jq exit 2
