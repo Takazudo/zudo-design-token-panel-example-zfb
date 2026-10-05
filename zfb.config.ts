@@ -3,7 +3,7 @@ import { defineConfig } from "@takazudo/zfb/config";
 /**
  * zfb example for @takazudo/zdtp.
  *
- * Deliberately minimal: NO Tailwind, NO collections. The example proves the
+ * Deliberately minimal: no Tailwind, with one prose collection. The example proves the
  * panel package works inside any zfb consumer that supplies just a
  * `PanelConfig` and mounts the panel adapter as a `"use client"` island.
  *

@@ -85,3 +85,15 @@ is not a passing build. A minimal public-API Island with a lazy zdtp import
 reproduces the pre-bundler stall tracked upstream in #3648. The fix is not yet
 published under the registry's latest tag. No build/browser parity or merge is
 claimed. Preserve this checkpoint until a released fix enables the full gates.
+
+The follow-up security update pins Wrangler 4.147.0 (compatible major), whose
+miniflare graph includes sharp 0.35.4 and undici 7.29.1. The frozen install,
+typecheck and audit now pass with no known vulnerabilities. Wrangler dry-run and
+all nine local Worker routing assertions pass using retained baseline assets;
+these validate the CLI update, not the still-blocked migration build.
+
+The public static MDX collection path was independently built with zfb 3.2.0
+and the actual prose source. Its 748 parsed HTML events match the baseline prose
+subtree, allowing removal of the obsolete private content-bridge fallback.
+Full application visual parity remains pending. No additional upstream defect
+was confirmed by these probes.
