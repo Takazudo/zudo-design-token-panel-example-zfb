@@ -27,7 +27,7 @@ export default function DataPage() {
         {/* ── Page header ─────────────────────────────────────────────────── */}
         <div>
           <h1 class="zfb-section-h2">Data &amp; media demo</h1>
-          <p class="zfb-body-text" style={{ marginTop: 'var(--zfb-spacing-sm)' }}>
+          <p class="zfb-body-text" style={{ 'margin-top': 'var(--zfb-spacing-sm)' }}>
             Token map: table borders use <code>color-muted</code>,
             row hover uses <code>color-surface</code>,
             stat number reads <code>text-h2</code>,
@@ -79,7 +79,7 @@ export default function DataPage() {
             Name: <code>text-h4</code>. Role: <code>text-small color-muted</code>.
           </p>
           {/* reason: card list width is page-local */}
-          <div class="zfb-field-group" style={{ maxWidth: '32rem' }}>
+          <div class="zfb-field-group" style={{ 'max-width': '32rem' }}>
             <ProfileCard name="Alice Martin" role="Product Designer" />
             <ProfileCard name="Bob Chen" role="Frontend Engineer" />
           </div>

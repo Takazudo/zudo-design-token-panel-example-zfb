@@ -34,7 +34,7 @@ import { defineConfig } from "@takazudo/zfb/config";
  * served paths, so all links resolve correctly from the repo root.
  */
 export default defineConfig({
-  framework: "preact",
+  wind: false,
   base: "/",
   collections: [
     {

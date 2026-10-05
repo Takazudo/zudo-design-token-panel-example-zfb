@@ -7,7 +7,7 @@
   "engines": {
     "node": ">=22.12.0"
   },
-  "description": "zfb (zudo-front-builder) example app demonstrating @takazudo/zdtp — host-config-driven panel mounted as a Preact island via zfb's Island component, plus apply-pipeline round-trip via a devMiddleware plugin that proxies to the bin sidecar.",
+  "description": "zfb (zudo-front-builder) example app demonstrating @takazudo/zdtp \u2014 host-config-driven panel mounted as a zudo-react island hosting the opaque Preact widget via zfb's Island component, plus apply-pipeline round-trip via a devMiddleware plugin that proxies to the bin sidecar.",
   "scripts": {
     "predev": "rm -rf dist .zfb .zfb-build zfb-tailwind-entry-*.css",
     "dev": "node scripts/launch.mjs dev",
@@ -20,10 +20,9 @@
   },
   "dependencies": {
     "@takazudo/zdtp": "0.5.1",
-    "@takazudo/zfb": "2.15.1",
-    "@takazudo/zfb-runtime": "2.15.1",
-    "preact": "^10.29.1",
-    "preact-render-to-string": "^6.5.0"
+    "@takazudo/zfb": "3.2.0",
+    "@takazudo/zfb-runtime": "3.2.0",
+    "preact": "^10.29.1"
   },
   "devDependencies": {
     "@playwright/test": "^1.60.0",

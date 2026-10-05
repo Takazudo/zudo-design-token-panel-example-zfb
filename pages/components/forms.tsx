@@ -23,12 +23,12 @@ export default function FormsPage() {
       activePath={`${BASE_PATH}components/forms/`}
     >
       {/* Page heading */}
-      <h1 class="zfb-section-h2" style={{ marginBottom: 'var(--zfb-vsp-sm)' }}>
+      <h1 class="zfb-section-h2" style={{ 'margin-bottom': 'var(--zfb-vsp-sm)' }}>
         Form controls demo
       </h1>
 
       {/* Intro paragraph */}
-      <p class="zfb-body-text" style={{ marginBottom: 'var(--zfb-vsp-md)', lineHeight: 'var(--zfb-leading-relaxed)' }}>
+      <p class="zfb-body-text" style={{ 'margin-bottom': 'var(--zfb-vsp-md)', 'line-height': 'var(--zfb-leading-relaxed)' }}>
         Each widget below is styled with plain CSS classes that resolve to design
         tokens. Inputs use <code>spacing-sm</code> for padding, <code>radius</code>{' '}
         for corners, <code>color-muted</code> for borders,{' '}
@@ -37,7 +37,7 @@ export default function FormsPage() {
       </p>
 
       {/* Form — SSR-only; inputs accept user input natively; no submit handler needed */}
-      <form class="zfb-form" onSubmit={(e) => e.preventDefault()}>
+      <form class="zfb-form">
 
         {/* ── Text input ────────────────────────────────────────────────── */}
         <section class="zfb-field-group">
@@ -136,7 +136,7 @@ export default function FormsPage() {
             <code>.zfb-form-checkbox</code>.
           </p>
           <fieldset class="zfb-form-fieldset">
-            <legend class="zfb-form-label" style={{ marginBottom: 'var(--zfb-spacing-xs)' }}>
+            <legend class="zfb-form-label" style={{ 'margin-bottom': 'var(--zfb-spacing-xs)' }}>
               Interests
             </legend>
             {[
@@ -160,7 +160,7 @@ export default function FormsPage() {
             <code>.zfb-form-radio</code>.
           </p>
           <fieldset class="zfb-form-fieldset">
-            <legend class="zfb-form-label" style={{ marginBottom: 'var(--zfb-spacing-xs)' }}>
+            <legend class="zfb-form-label" style={{ 'margin-bottom': 'var(--zfb-spacing-xs)' }}>
               Preferred theme
             </legend>
             {[
@@ -190,7 +190,7 @@ export default function FormsPage() {
               type="range"
               min="0"
               max="100"
-              defaultValue="60"
+              value="60"
               class="zfb-form-range"
             />
             <span class="zfb-form-helper">0 – 100</span>

@@ -1,3 +1,4 @@
+@import '@takazudo/zdtp/styles.css';
 /*
  * `--zfb-*` tokens consumed by the demo page.
  *
@@ -144,7 +145,7 @@ textarea {
    the panel iframe and dock chrome. Import it so the panel renders correctly
    when opened. Vite library mode strips the source CSS import from the emitted
    JS, so consumers must re-pull it explicitly via this CSS import. */
-@import '@takazudo/zdtp/styles.css';
+
 
 body {
   background: var(--zfb-bg);

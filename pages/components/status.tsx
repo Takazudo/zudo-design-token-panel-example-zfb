@@ -82,7 +82,7 @@ function Badges() {
       </p>
 
       <div>
-        <p class="zfb-muted-text" style={{ marginBottom: 'var(--zfb-spacing-xs)' }}>
+        <p class="zfb-muted-text" style={{ 'margin-bottom': 'var(--zfb-spacing-xs)' }}>
           Filled
         </p>
         <div class="zfb-flex-wrap">
@@ -93,7 +93,7 @@ function Badges() {
       </div>
 
       <div>
-        <p class="zfb-muted-text" style={{ marginBottom: 'var(--zfb-spacing-xs)' }}>
+        <p class="zfb-muted-text" style={{ 'margin-bottom': 'var(--zfb-spacing-xs)' }}>
           Outlined
         </p>
         <div class="zfb-flex-wrap">
@@ -180,7 +180,7 @@ function Tooltips() {
 
       <div
         class="zfb-surface-box"
-        style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--zfb-spacing-lg)', fontSize: 'var(--zfb-text-body)', color: 'var(--zfb-fg)' }}
+        style={{ display: 'flex', 'flex-wrap': 'wrap', gap: 'var(--zfb-spacing-lg)', 'font-size': 'var(--zfb-text-body)', color: 'var(--zfb-fg)' }}
       >
         <span>
           Token panel adjusts{' '}
@@ -214,7 +214,7 @@ export default function StatusPage() {
       <div class="zfb-page-stack">
         <header>
           <h1 class="zfb-section-h2">Status surfaces demo</h1>
-          <p class="zfb-body-text" style={{ marginTop: 'var(--zfb-spacing-sm)' }}>
+          <p class="zfb-body-text" style={{ 'margin-top': 'var(--zfb-spacing-sm)' }}>
             Covers alerts, badges, tags/chips, and tooltips — all driven by semantic
             color tokens <code>color-accent</code>, <code>color-success</code>,{' '}
             <code>color-warning</code>, <code>color-danger</code>.

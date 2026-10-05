@@ -31,7 +31,7 @@ export default function WidgetsPage() {
       {/* reason: page-content max-width is a layout constant for this demo; no structural token covers prose-container widths */}
       <div class="zfb-page-stack">
         <header>
-          <h1 class="zfb-section-h2" style={{ marginBottom: 'var(--zfb-spacing-md)' }}>
+          <h1 class="zfb-section-h2" style={{ 'margin-bottom': 'var(--zfb-spacing-md)' }}>
             Interactive Widgets
           </h1>
           <p class="zfb-body-text">
@@ -43,25 +43,25 @@ export default function WidgetsPage() {
 
         {/* ── Tabs ──────────────────────────────────────────────────────────── */}
         <section>
-          <h2 class="zfb-section-h3" style={{ marginBottom: 'var(--zfb-spacing-sm)' }}>
+          <h2 class="zfb-section-h3" style={{ 'margin-bottom': 'var(--zfb-spacing-sm)' }}>
             Tabs
           </h2>
-          <p class="zfb-muted-text" style={{ marginBottom: 'var(--zfb-spacing-md)' }}>
+          <p class="zfb-muted-text" style={{ 'margin-bottom': 'var(--zfb-spacing-md)' }}>
             Active indicator slides using{' '}
             <code>easing-tab-open</code>{' '}
             (→&nbsp;<code>--zfb-easing-tab-open</code>).
           </p>
           <div class="zfb-surface-box">
-            <TabsDemo />
+            <TabsDemo id="widgets-demo-tabs" />
           </div>
         </section>
 
         {/* ── Accordion ─────────────────────────────────────────────────────── */}
         <section>
-          <h2 class="zfb-section-h3" style={{ marginBottom: 'var(--zfb-spacing-sm)' }}>
+          <h2 class="zfb-section-h3" style={{ 'margin-bottom': 'var(--zfb-spacing-sm)' }}>
             Accordion
           </h2>
-          <p class="zfb-muted-text" style={{ marginBottom: 'var(--zfb-spacing-md)' }}>
+          <p class="zfb-muted-text" style={{ 'margin-bottom': 'var(--zfb-spacing-md)' }}>
             Height transitions use{' '}
             <code>easing-tab-open</code> / <code>easing-tab-close</code>{' '}
             for open/close respectively (progressive enhancement, Chrome 131+).
@@ -71,10 +71,10 @@ export default function WidgetsPage() {
 
         {/* ── Modal ─────────────────────────────────────────────────────────── */}
         <section>
-          <h2 class="zfb-section-h3" style={{ marginBottom: 'var(--zfb-spacing-sm)' }}>
+          <h2 class="zfb-section-h3" style={{ 'margin-bottom': 'var(--zfb-spacing-sm)' }}>
             Modal
           </h2>
-          <p class="zfb-muted-text" style={{ marginBottom: 'var(--zfb-spacing-md)' }}>
+          <p class="zfb-muted-text" style={{ 'margin-bottom': 'var(--zfb-spacing-md)' }}>
             Fade-and-scale animation uses{' '}
             <code>easing-modal</code>{' '}
             (→&nbsp;<code>--zfb-easing-modal</code>). Close via

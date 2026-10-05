@@ -1,6 +1,6 @@
 # zudo-design-token-panel-example-zfb
 
-Demonstrates `@takazudo/zdtp` inside a [zfb (zudo-front-builder)](https://github.com/Takazudo/zudo-front-builder) project. The panel is mounted as a Preact island via zfb's `<Island>` component, and the dev-time apply pipeline is wired through a small zfb plugin's `devMiddleware` hook.
+Demonstrates `@takazudo/zdtp` inside a [zfb (zudo-front-builder)](https://github.com/Takazudo/zudo-front-builder) project. The panel is mounted as a zudo-react island via zfb's `<Island>` component, and the dev-time apply pipeline is wired through a small zfb plugin's `devMiddleware` hook.
 
 Deployed to Cloudflare Workers Static Assets at
 `https://zdtp-zfb.zudolab.dev/`.
@@ -148,11 +148,11 @@ zfb's `<Island>` component marks a `"use client"` subtree for browser-side hydra
 </Island>
 ```
 
-`PanelMount` (`components/panel-mount.tsx`) returns `null` — it only runs a `useEffect` to bootstrap the panel adapter.
+`PanelMount` (`components/panel-mount.tsx`) returns `null` — it uses `getScope().onActivate` to bootstrap the panel adapter.
 
 **Why `ssrFallback={null}` (the zfb `client:only` equivalent)?**
 
-zfb's default `<Island>` SSR-renders the child and then hydrates it on the client. `PanelMount` uses `useEffect` from `preact/hooks`, which during SSR would fail with a Preact internal hooks error (`__H` undefined) because zfb's SSR renderer and the project's `preact` package are different instances — the Preact hooks options are only wired up in the SSR renderer's instance. Passing `ssrFallback` (even `null`) switches the island to skip-SSR mode, preventing the hooks from running during the server-side render pass. The component is then mounted client-side by the hydration runtime.
+The host island uses zudo-react. `ssrFallback={null}` keeps the self-mounting zdtp Preact widget client-only; its module is loaded lazily after activation. The adapter tracks live owners and invalidates pending imports on disposal, then destroys the widget through its public instance handle. Preact remains installed only for zdtp 0.5.1's peer runtime.
 
 The `when="visible"` strategy defers hydration until the element is in the viewport. Because `<PanelMount>` sits at the end of `<body>`, the IntersectionObserver fires shortly after first paint — effectively an idle-ish load strategy that does not block the critical-path chunk.
 
@@ -207,3 +207,21 @@ ctx.register(APPLY_ROUTE, async (req) => { /* ... */ });
 This matches the pattern used by the astro, vite-react, and next examples.
 
 For the historical context (when `base` was `/pj/zudo-design-token-panel/examples/zfb/` and a full prefix was required), see [`PROBE-REPORT.md`](./PROBE-REPORT.md).
+
+
+## zfb 3 migration status
+
+The migration pins zfb and zfb-runtime to 3.2.0, keeps authored CSS with
+`wind: false`, and retains zdtp 0.5.1. Tabs take an explicit unique `id` per
+instance so their ARIA relationships remain deterministic.
+
+The easing card remains static, matching its previous SSR-only behavior even
+though its existing label invites a click. Turning it into an interactive demo
+is a separate product change. The forms likewise retain native submission. The modal retains its documented
+no-focus-restoration behavior (focus returns to the body after closing); fixing
+that baseline limitation is outside this migration.
+
+This migration is not yet approved for deployment: the published 3.2.0 build
+stalls during package graph scanning. See tracker #18 and upstream
+Takazudo/zudo-front-builder#3648. Production build, installed-runtime browser
+parity, and Worker verification must be completed after a published fix.

@@ -41,11 +41,11 @@ export function AccordionDemo() {
         <details key={item.id} class="zfb-accordion">
           <summary class="zfb-accordion__summary">
             <span>{item.summary}</span>
-            <span class="zfb-muted-text" aria-hidden="true" style={{ userSelect: 'none' }}>▾</span>
+            <span class="zfb-muted-text" aria-hidden="true" style={{ 'user-select': 'none' }}>▾</span>
           </summary>
           <div class="zfb-accordion__content">
             <p>{item.body}</p>
-            <p class="zfb-muted-text" style={{ marginTop: 'var(--zfb-spacing-sm)' }}>
+            <p class="zfb-muted-text" style={{ 'margin-top': 'var(--zfb-spacing-sm)' }}>
               Open timing: <code>easing-tab-open</code> →{' '}
               <code>--zfb-easing-tab-open</code>. Close timing:{' '}
               <code>easing-tab-close</code> →{' '}

@@ -67,3 +67,21 @@ If a new zfb gap is discovered during the zfb demo implementation (#35 or later)
 2. **Add a row** to the upstream-fix table in this report (and in `__inbox/zfb-probe-report.md`) with the issue number and a ⏳ status.
 3. **Wait for the upstream fix** (or implement a workaround in the zdtp demo with a comment referencing the open issue) before completing the sub-issue.
 4. **Update the row** to ✅ verified once the fix commit is confirmed and the issue is closed.
+
+
+## 2026-10-05: zfb 3 migration checkpoint
+
+Baseline main `5425d3a` with zfb/runtime 2.15.1: frozen pnpm 10.33.2 install,
+`pnpm typecheck`, six-page `pnpm build`, and all 12 existing browser tests pass.
+Matching 1280px/390px screenshots and computed styles were captured with
+system Chromium 151.0.7922.173 on Linux x86_64, Node 24.19.0. Playwright's pinned
+browser download was blocked by the environment; the same system browser is
+required for comparisons. Baseline audit reports 3 high, 5 moderate, 3 low
+advisories in the existing dependency tree.
+
+Migration typecheck passes on exact zfb/runtime 3.2.0. The full build was
+CPU-active without output for 99 seconds before diagnostic cancellation; this
+is not a passing build. A minimal public-API Island with a lazy zdtp import
+reproduces the pre-bundler stall tracked upstream in #3648. The fix is not yet
+published under the registry's latest tag. No build/browser parity or merge is
+claimed. Preserve this checkpoint until a released fix enables the full gates.
