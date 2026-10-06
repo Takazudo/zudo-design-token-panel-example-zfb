@@ -8,8 +8,8 @@
  * DEMO-GRADE ONLY. This component deliberately omits:
  *   - Focus trap / tabindex cycling
  *   - Scroll lock
- *   - ARIA live-region announcements
  *   - Focus restoration on close
+ *   - ARIA live-region announcements
  * It uses `inert` on the page's <main> element to prevent interaction with
  * background content while open. The native <dialog>.showModal() call
  * hoists the element to the top layer, so it is NOT affected by <main inert>.
@@ -23,63 +23,43 @@
  * Open/close animation rules live in global.css — no scoped <style> needed.
  */
 
-import { useEffect, useRef } from 'preact/hooks';
-import { useState } from 'preact/hooks';
-import { Island, type IslandProps } from '@takazudo/zfb';
+import { getScope, signal, type Ref } from '@takazudo/zfb/zudo-react';
+import { Island } from '@takazudo/zfb';
 
-// Exported so zfb's island scanner registers it in the hydration manifest:
-// `<Island>` emits a `data-zfb-island="ModalInner"` marker (named after the
-// child component), and the runtime resolves that name only for exported
-// "use client" components reachable from pages/. (zfb >= 0.1.0-next.x)
 export function ModalInner() {
-  const [isOpen, setIsOpen] = useState(false);
-  const dialogRef = useRef<HTMLDialogElement>(null);
-
-  useEffect(() => {
+  const scope = getScope();
+  const isOpen = signal(false);
+  const dialogRef: Ref<HTMLDialogElement> = { current: null };
+  scope.effect(() => {
     const dialog = dialogRef.current;
-    if (!dialog) return;
-    const mainEl = document.querySelector('main');
-
-    if (isOpen) {
-      dialog.showModal();
-      // Apply inert to background content — dialog is in top layer,
-      // unaffected by inert on its ancestor.
-      if (mainEl) mainEl.inert = true;
-    } else {
+    if (!dialog || !isOpen.value) return;
+    const main = document.querySelector('main');
+    const wasInert = main?.inert ?? false;
+    dialog.showModal();
+    if (main) main.inert = true;
+    return () => {
       dialog.close();
-      if (mainEl) mainEl.inert = false;
-    }
-  }, [isOpen]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') setIsOpen(false);
-    }
-
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
-  }, [isOpen]);
-
-  // Sync state when dialog is closed via native Escape (browser default)
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-    function onCancel(e: Event) {
-      e.preventDefault(); // prevent native close; we handle it ourselves
-      setIsOpen(false);
-    }
-    dialog.addEventListener('cancel', onCancel);
-    return () => dialog.removeEventListener('cancel', onCancel);
-  }, []);
+      if (main) main.inert = wasInert;
+    };
+  });
+  scope.onActivate(() => {
+    const dialog = dialogRef.current!;
+    const cancel = (event: Event) => { event.preventDefault(); isOpen.value = false; };
+    const keydown = (event: KeyboardEvent) => { if (event.key === 'Escape') isOpen.value = false; };
+    dialog.addEventListener('cancel', cancel);
+    document.addEventListener('keydown', keydown);
+    return () => {
+      dialog.removeEventListener('cancel', cancel);
+      document.removeEventListener('keydown', keydown);
+    };
+  });
 
   return (
     <>
       <button
         type="button"
         class="zfb-modal__trigger"
-        onClick={() => setIsOpen(true)}
+        on:click={() => { isOpen.value = true; }}
       >
         Open Modal
       </button>
@@ -93,7 +73,7 @@ export function ModalInner() {
             <button
               type="button"
               class="zfb-modal__close"
-              onClick={() => setIsOpen(false)}
+              on:click={() => { isOpen.value = false; }}
               aria-label="Close modal"
             >
               ✕
@@ -114,7 +94,7 @@ export function ModalInner() {
             <button
               type="button"
               class="zfb-modal__trigger"
-              onClick={() => setIsOpen(false)}
+              on:click={() => { isOpen.value = false; }}
             >
               Close
             </button>
@@ -127,8 +107,8 @@ export function ModalInner() {
 
 export function ModalDemo() {
   return (
-    <Island when="visible" ssrFallback={null}>
-      {(<ModalInner />) as unknown as IslandProps['children']}
+    <Island when="load" ssrFallback={null}>
+      <ModalInner />
     </Island>
   );
 }

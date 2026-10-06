@@ -22,7 +22,8 @@
  * panel adapter without repeating the boilerplate.
  */
 
-import { Island, type IslandProps } from '@takazudo/zfb';
+import type { Child } from '@takazudo/zfb/zudo-react';
+import { Island } from '@takazudo/zfb';
 import PanelMount from './panel-mount';
 import { Sidenav } from './sidenav';
 import '../styles/global.css';
@@ -32,14 +33,14 @@ const BASE_PATH = '/';
 interface AppShellProps {
   title?: string;
   activePath?: string;
-  children: preact.ComponentChildren;
+  children: Child;
 }
 
 export function AppShell({ title = 'zfb — Design Token Panel', activePath = BASE_PATH, children }: AppShellProps) {
   return (
     <html lang="en">
       <head>
-        <meta charSet="utf-8" />
+        <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <title>{title}</title>
       </head>
@@ -60,14 +61,13 @@ export function AppShell({ title = 'zfb — Design Token Panel', activePath = BA
             Panel button click handler. Page body is SSR-only; the Island
             containing PanelMount runs client-side only. This inline script
             attaches a click listener at parse time, bridging the SSR/island gap.
-            Once PanelMount's useEffect installs window.zfb.toggleDesignPanel,
+            Once PanelMount's activation installs window.zfb.toggleDesignPanel,
             clicks invoke it.
           */}
           <script
-            dangerouslySetInnerHTML={{
-              __html:
-                "document.getElementById('zfb-panel-open')?.addEventListener('click',function(){var a=window.zfb;if(a&&typeof a.toggleDesignPanel==='function')a.toggleDesignPanel();});",
-            }}
+            rawHtml={
+                "document.getElementById('zfb-panel-open')?.addEventListener('click',function(){var a=window.zfb;if(a&&typeof a.toggleDesignPanel==='function')a.toggleDesignPanel();});"
+            }
           />
         </header>
 
@@ -86,8 +86,8 @@ export function AppShell({ title = 'zfb — Design Token Panel', activePath = BA
           Uses `ssrFallback={null}` (the zfb equivalent of Astro's `client:only`)
           so the island's internals are NOT evaluated at SSR time.
         */}
-        <Island when="visible" ssrFallback={null}>
-          {(<PanelMount />) as unknown as IslandProps['children']}
+        <Island when="load" ssrFallback={null}>
+          <PanelMount />
         </Island>
       </body>
     </html>

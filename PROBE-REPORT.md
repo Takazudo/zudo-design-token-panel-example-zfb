@@ -67,3 +67,78 @@ If a new zfb gap is discovered during the zfb demo implementation (#35 or later)
 2. **Add a row** to the upstream-fix table in this report (and in `__inbox/zfb-probe-report.md`) with the issue number and a ⏳ status.
 3. **Wait for the upstream fix** (or implement a workaround in the zdtp demo with a comment referencing the open issue) before completing the sub-issue.
 4. **Update the row** to ✅ verified once the fix commit is confirmed and the issue is closed.
+
+
+## 2026-10-05: zfb 3 migration checkpoint
+
+Baseline main `5425d3a` with zfb/runtime 2.15.1: frozen pnpm 10.33.2 install,
+`pnpm typecheck`, six-page `pnpm build`, and all 12 existing browser tests pass.
+Matching 1280px/390px screenshots and computed styles were captured with
+system Chromium 151.0.7922.173 on Linux x86_64, Node 24.19.0. Playwright's pinned
+browser download was blocked by the environment; the same system browser is
+required for comparisons. Baseline audit reports 3 high, 5 moderate, 3 low
+advisories in the existing dependency tree.
+
+Migration typecheck passes on exact zfb/runtime 3.2.0. The full build was
+CPU-active without output for 99 seconds before diagnostic cancellation; this
+is not a passing build. A minimal public-API Island with a lazy zdtp import
+reproduces the pre-bundler stall tracked upstream in #3648. The fix is not yet
+published under the registry's latest tag. No build/browser parity or merge is
+claimed. Preserve this checkpoint until a released fix enables the full gates.
+
+The follow-up security update pins Wrangler 4.147.0 (compatible major), whose
+miniflare graph includes sharp 0.35.4 and undici 7.29.1. The frozen install,
+typecheck and audit now pass with no known vulnerabilities. Wrangler dry-run and
+all nine local Worker routing assertions pass using retained baseline assets;
+these validate the CLI update, not the still-blocked migration build.
+
+The public static MDX collection path was independently built with zfb 3.2.0
+and the actual prose source. Its 748 parsed HTML events match the baseline prose
+subtree, allowing removal of the obsolete private content-bridge fallback.
+Full application visual parity remains pending. No additional upstream defect
+was confirmed by these probes.
+
+## 2026-10-06: published zfb 4.0.0 verification
+
+This checkpoint supersedes the blocked 3.2.0 checkpoint above. The exact
+published zfb/runtime 4.0.0 tuple and Linux GNU binary build the real six-page
+consumer in 3.52 seconds. The isolated lazy-widget scanner reproducer completes
+in 3.08 seconds. No upstream source or unreleased package is used.
+
+All 17 browser tests pass against the rebuilt migration preview. Actual public
+`createIslandTest` roots verify disposal during a delayed widget import, fresh
+remount, overlapping owners, and repeated mount/dispose without leaked widget
+DOM. A real UI override survives reload with the panel closed. The dev proxy
+POST reaches the sidecar, rewrites the token file, and the probe restores that
+file byte-for-byte. Wrangler dry-run and nine local Worker route, redirect,
+asset, and 404 assertions pass using the actual migration output.
+
+The same Chromium 151.0.7922.173 captures all six routes at 1280×900 and 390×900
+against baseline `5425d3a`. Text, titles and sampled computed styles match for
+all 12 captures; ten images are pixel-identical. The widgets route has a narrow
+text rasterization difference: adjacent text-node merging moves inline code by
+1/64px, with unchanged content, font, wrapping and layout. Independent review
+accepted this quantified difference; no CSS compensation or widened screenshot
+tolerance was applied.
+
+The authored reset retains the baseline's Tailwind preflight behavior and full
+MIT notice. Empty client-only panel, modal and tabs markers now activate on
+load, preserving immediate interactions without requiring a scroll. The widget
+package itself still loads lazily. New tooling advisories are resolved through
+scoped sharp 0.35.5 and shell-quote 1.11.0 overrides; audit remains enforced.
+
+Local evidence is retained outside the repository at
+`/workspace/zfb-migration-evidence/plain/v4/`, including build, browser,
+lifecycle, screenshot, persistence, proxy and Worker logs. Final-head CI and
+merge status are recorded on PR #19 and tracker #18.
+
+Final frozen install, typecheck, audit (no known vulnerabilities), guarded build
+and 17-test suite pass. All five zfb platform packages are present in the lockfile.
+The complete route manifest and all 748 prose HTML events match baseline.
+A fresh dev server hydrates all six routes and passes panel/modal/tabs checks
+without page or asset errors. A stale dev server timed out after a concurrent
+production rebuild; restarting it resolved the failure. An explicit widget API
+test double also verifies that restoration errors leave the production adapter's
+public actions and teardown usable. This tests the adapter's error boundary,
+not simulated widget internals. Independent source review approved the final
+changes, including the reset attribution and full platform lockfile.

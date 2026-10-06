@@ -16,26 +16,25 @@
  */
 
 import { AppShell } from '../components/app-shell';
-import { useState } from 'preact/hooks';
 
 const BASE_PATH = '/';
 
 const PALETTE_INDICES = Array.from({ length: 16 }, (_, i) => i);
 
 /**
- * Interactive easing demo card.
+ * Static easing demo card (historically rendered without hydration).
  *
  * Clicking the card toggles it between resting and active position.
  * The transition uses `var(--zfb-easing-tab-open)` so changing the
  * Easing tab's "Tab Open" semantic role updates the perceived motion live.
  */
 function EasingDemoCard() {
-  const [active, setActive] = useState(false);
+  // Preserve the v2 SSR-only demo; adding interaction is a separate product change.
+  const active = false;
   return (
     <button
       type="button"
       class={active ? 'zfb-easing-card is-active' : 'zfb-easing-card'}
-      onClick={() => setActive((v) => !v)}
       aria-pressed={active}
     >
       <span class="zfb-easing-card-label">

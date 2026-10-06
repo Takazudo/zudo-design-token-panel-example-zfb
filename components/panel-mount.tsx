@@ -4,14 +4,9 @@
  * PanelMount — the `"use client"` island that bootstraps the design-token
  * panel adapter inside the zfb hydration pipeline.
  *
- * zfb renders pages as server components by default. This file marks the
- * boundary between server-rendered HTML and the Preact island that runs in
- * the browser. `components/app-shell.tsx` wraps this component in
- * `<Island when="visible" ssrFallback={null}>`, so zfb emits a
- * `data-zfb-island-skip-ssr` placeholder at the end of `<body>` and the
- * hydration runtime renders this component into it via an
- * `IntersectionObserver` (threshold 0) once the placeholder intersects the
- * viewport — never at SSR time, and never before first paint.
+ * The shell uses a client-only `when="load"` island so the topbar action is
+ * available without scrolling to this component's empty end-of-page marker.
+ * The widget package itself remains lazy until a click or persisted signal.
  *
  * Panel adapter bootstrap
  * -----------------------
@@ -27,22 +22,9 @@
  *      `configurePanel` so persisted overrides land as soon as the module
  *      resolves.
  *
- * What the eager-load gate does — and does NOT — buy in THIS host
- * ---------------------------------------------------------------
- * The vite-react and Next hosts run their equivalent gate from the entry
- * script, so a hit there restores the user's tweaks before the first paint
- * and the gate is an FOUT defence. That reasoning does NOT transfer here.
- * Under `when="visible"` this whole file is deferred until after paint by
- * construction, so a returning user with saved tweaks always sees one frame
- * of stylesheet defaults. The gate cannot close that window, and no amount
- * of widening it would.
- *
- * What it decides here is whether the panel chunk is fetched *at all*. A
- * visitor with no panel signals never downloads it; a user who had the panel
- * open, armed a closed-shell feature, or saved overrides gets it restored on
- * hydration without having to call a `window.<ns>.*` helper from the console.
- * That is why the gate still has to be exhaustive: a missed signal is not a
- * cosmetic flash here, it is a feature that silently never comes back.
+ * The gate fetches the widget only when saved state or a closed-shell feature
+ * requires restoration. Activation follows page parsing, so it does not
+ * promise restoration before first paint.
  *
  * Eager-load signals come from the package, never from this file
  * -------------------------------------------------------------
@@ -70,10 +52,10 @@
  * `'0'` — so a visible-only gate leaves autoload unrestored.
  *
  * Returns `null` — the panel adapter appends its own DOM root outside the
- * Preact tree; this component owns no DOM of its own.
+ * host tree; this component owns no DOM of its own.
  */
 
-import { useEffect } from 'preact/hooks';
+import { getScope } from '@takazudo/zfb/zudo-react';
 import type { PanelConfig } from '@takazudo/zdtp/astro';
 import {
   EAGER_LOAD_GATE_KEY_SUFFIXES,
@@ -89,6 +71,9 @@ interface DesignTokenPanelAdapterState {
   bound: boolean;
   /** Memoised module promise so steady-state toggle/show/hide share one load. */
   modulePromise: Promise<DesignTokenPanelModule> | null;
+  owners: number;
+  generation: number;
+  handle: ReturnType<DesignTokenPanelModule["configurePanel"]> | null;
 }
 
 interface ConsoleApiSurface {
@@ -116,7 +101,7 @@ function getAdapterState(win: AdapterWindow, key: string): DesignTokenPanelAdapt
   const map = getAdapterStateMap(win);
   let state = map[key];
   if (!state) {
-    state = { bound: false, modulePromise: null };
+    state = { bound: false, modulePromise: null, owners: 0, generation: 0, handle: null };
     map[key] = state;
   }
   return state;
@@ -201,32 +186,29 @@ function hasPersistedOverrides(cfg: PanelConfig): boolean {
 }
 
 async function loadPanelModule(state: DesignTokenPanelAdapterState) {
-  if (state.modulePromise === null) {
-    const pending = import('@takazudo/zdtp').then((mod) => {
-      // Configure FIRST — every other panel API reads getPanelConfig() and
-      // must observe the host's intended values, not the package sentinel.
-      mod.configurePanel(panelConfig);
-      try {
-        mod.reapplyPersistedOverrides();
-      } catch (err) {
-        // Defensive: never let a bad persist-state read kill the panel surface.
-        console.warn(
-          '[design-token-panel] reapplyPersistedOverrides() threw: ' + (err as Error).message,
-        );
-      }
-      return mod;
-    });
-    // Never cache a REJECTED import. One failed chunk fetch (flaky network,
-    // a stale hashed asset after a redeploy) would otherwise pin the rejected
-    // promise for the page lifetime, so every later
-    // `window.<ns>.showDesignPanel()` would reject too and the panel could
-    // never be recovered without a reload. Dropping it lets the next call retry.
+  if (!state.modulePromise) {
+    const pending = import('@takazudo/zdtp');
+    state.modulePromise = pending;
     void pending.catch(() => {
       if (state.modulePromise === pending) state.modulePromise = null;
     });
-    state.modulePromise = pending;
   }
   return state.modulePromise;
+}
+
+async function activePanel(state: DesignTokenPanelAdapterState) {
+  const generation = state.generation;
+  const mod = await loadPanelModule(state);
+  if (!state.owners || state.generation !== generation) return null;
+  if (!state.handle) {
+    state.handle = mod.configurePanel(panelConfig);
+    try {
+      mod.reapplyPersistedOverrides();
+    } catch (err) {
+      console.warn('[design-token-panel] reapplyPersistedOverrides() threw: ' + String(err));
+    }
+  }
+  return mod;
 }
 
 function installConsoleApi(
@@ -236,49 +218,45 @@ function installConsoleApi(
 ): void {
   const existing = (win[namespace] as ConsoleApiSurface | undefined) ?? {};
   existing.showDesignPanel = async () => {
-    const panel = await loadPanelModule(state);
-    panel.showDesignTokenPanel();
+    const panel = await activePanel(state);
+    panel?.showDesignTokenPanel();
   };
   existing.hideDesignPanel = async () => {
-    const panel = await loadPanelModule(state);
-    panel.hideDesignTokenPanel();
+    const panel = await activePanel(state);
+    panel?.hideDesignTokenPanel();
   };
   existing.toggleDesignPanel = async () => {
-    const panel = await loadPanelModule(state);
-    panel.toggleDesignPanel();
+    const panel = await activePanel(state);
+    panel?.toggleDesignPanel();
   };
   win[namespace] = existing;
 }
 
-function mountPanel(): void {
-  if (typeof window === 'undefined') return;
-
+function mountPanel(): () => void {
   const cfg = panelConfig;
   const win = window as unknown as AdapterWindow;
   const state = getAdapterState(win, cfg.storagePrefix);
-
-  // Install console API every time — `bound` only gates the lazy-load
-  // probes, since the console handlers are idempotent.
+  state.owners++;
   installConsoleApi(win, cfg.consoleNamespace, state);
-
-  if (state.bound) return;
-  state.bound = true;
-
-  if (hasActiveFlagSignal(cfg) || hasPersistedOverrides(cfg)) {
-    // Fire-and-forget by design, but with the rejection handled: nothing
-    // awaits this promise, and an unhandled rejection from a failed chunk
-    // load fails the whole run in a consumer's test runner.
-    void loadPanelModule(state).catch((err: unknown) => {
-      console.error('[design-token-panel] Eager panel-module load failed.', err);
-    });
+  if (!state.bound) {
+    state.bound = true;
+    if (hasActiveFlagSignal(cfg) || hasPersistedOverrides(cfg)) {
+      void activePanel(state).catch((err: unknown) => {
+        console.error('[design-token-panel] Eager panel-module load failed.', err);
+      });
+    }
   }
+  return () => {
+    if (--state.owners) return;
+    // Invalidate pending imports before the public widget teardown runs.
+    state.generation++;
+    state.bound = false;
+    state.handle?.destroy();
+    state.handle = null;
+  };
 }
 
 export default function PanelMount() {
-  useEffect(() => {
-    mountPanel();
-    // No cleanup: the panel adapter installs window-level state that lives
-    // for the page lifetime. A teardown on unmount would be wrong.
-  }, []);
+  getScope().onActivate(mountPanel);
   return null;
 }
