@@ -65,3 +65,19 @@ test('native form controls retain the initial range value and editable state', a
   await checkbox.check();
   await expect(checkbox).toBeChecked();
 });
+
+test('closed panel restores a saved override without reopening', async ({ page }) => {
+  await page.goto('/');
+  await page.waitForFunction(() => typeof (window as any).zfb?.toggleDesignPanel === 'function');
+  await page.locator('#zfb-panel-open').click();
+  await page.getByRole('tab', { name: /size/i }).click();
+  const input = page.getByLabel('--zfb-radius value').first();
+  await input.fill('1.25');
+  await input.press('Tab');
+  const radius = () => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--zfb-radius').trim());
+  await expect.poll(radius).toBe('1.25rem');
+  await page.locator('.tokenpanel-close-btn').first().click();
+  await page.reload();
+  await expect.poll(radius).toBe('1.25rem');
+  await expect(page.locator('.tokenpanel-shell')).not.toBeVisible();
+});

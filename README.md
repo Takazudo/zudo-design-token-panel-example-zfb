@@ -140,10 +140,10 @@ pnpm typecheck
 
 ## Island choice
 
-zfb's `<Island>` component marks a `"use client"` subtree for browser-side hydration. `pages/index.tsx` wraps `<PanelMount>` in `<Island when="visible" ssrFallback={null}>`:
+zfb's `<Island>` component marks a `"use client"` subtree for browser-side hydration. `components/app-shell.tsx` wraps `<PanelMount>` in `<Island when="load" ssrFallback={null}>`:
 
 ```tsx
-<Island when="visible" ssrFallback={null}>
+<Island when="load" ssrFallback={null}>
   <PanelMount />
 </Island>
 ```
@@ -154,7 +154,7 @@ zfb's `<Island>` component marks a `"use client"` subtree for browser-side hydra
 
 The host island uses zudo-react. `ssrFallback={null}` keeps the self-mounting zdtp Preact widget client-only; its module is loaded lazily after activation. The adapter tracks live owners and invalidates pending imports on disposal, then destroys the widget through its public instance handle. Preact remains installed only for zdtp 0.5.1's peer runtime.
 
-The `when="visible"` strategy defers hydration until the element is in the viewport. Because `<PanelMount>` sits at the end of `<body>`, the IntersectionObserver fires shortly after first paint — effectively an idle-ish load strategy that does not block the critical-path chunk.
+The `when="load"` strategy activates the adapter after page parsing, so the topbar action works without scrolling to an empty end-of-page marker. The widget module remains lazy until a click or a persisted-state signal requires it. Saved overrides are restored after loading; this does not promise restoration before first paint.
 
 ---
 
@@ -179,7 +179,7 @@ ctx.register(APPLY_ROUTE, async (req) => {
 
 The plugin imports the shared resolver directly — zfb's plugin host loads
 `.mjs` plugins through a normal dynamic ESM import, so a sibling relative
-import resolves from the plugin file (verified against zfb 2.15.1).
+import resolves from the plugin file (verified against published zfb 4.0.0).
 
 The plugin is listed in `zfb.config.ts`:
 
@@ -209,19 +209,24 @@ This matches the pattern used by the astro, vite-react, and next examples.
 For the historical context (when `base` was `/pj/zudo-design-token-panel/examples/zfb/` and a full prefix was required), see [`PROBE-REPORT.md`](./PROBE-REPORT.md).
 
 
-## zfb 3 migration status
+## zfb 4 migration
 
-The migration pins zfb and zfb-runtime to 3.2.0, keeps authored CSS with
-`wind: false`, and retains zdtp 0.5.1. Tabs take an explicit unique `id` per
-instance so their ARIA relationships remain deterministic.
+The host pins published zfb and zfb-runtime 4.0.0 and uses zudo-react islands.
+It keeps authored CSS with `wind: false` and retains zdtp 0.5.1 with its Preact
+peer runtime. `styles/reset.css` preserves the reset previously emitted by zfb
+2.15.1; its upstream MIT notice is retained. Tabs take a unique `id` per instance
+for deterministic ARIA relationships. Modal and tabs islands activate on load.
 
 The easing card remains static, matching its previous SSR-only behavior even
-though its existing label invites a click. Turning it into an interactive demo
-is a separate product change. The forms likewise retain native submission. The modal retains its documented
-no-focus-restoration behavior (focus returns to the body after closing); fixing
-that baseline limitation is outside this migration.
+though its label invites a click. Forms retain native submission. Closing the
+modal retains baseline focus on the body.
 
-This migration is not yet approved for deployment: the published 3.2.0 build
-stalls during package graph scanning. See tracker #18 and upstream
-Takazudo/zudo-front-builder#3648. Production build, installed-runtime browser
-parity, and Worker verification must be completed after a published fix.
+Published 4.0.0 resolves the package-scanning stall recorded in upstream #3648.
+The six-page build, browser interactions, actual island disposal/remount,
+closed-panel persistence, dev apply proxy, and local Worker routing have been
+verified. See [PROBE-REPORT.md](./PROBE-REPORT.md) for evidence and the narrow
+renderer text-position difference accepted during parity review.
+
+Scoped pnpm overrides for `miniflare>sharp` and `concurrently>shell-quote`
+resolve advisories in the current tooling graph. Reassess these overrides when
+the parent packages publish dependency updates; the audit gate remains enabled.

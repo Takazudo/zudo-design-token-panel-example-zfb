@@ -131,7 +131,7 @@ export function TabsInner({ id }: { id: string }) {
 
 export function TabsDemo({ id }: { id: string }) {
   return (
-    <Island when="visible" ssrFallback={null}>
+    <Island when="load" ssrFallback={null}>
       <TabsInner id={id} />
     </Island>
   );

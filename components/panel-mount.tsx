@@ -4,14 +4,9 @@
  * PanelMount — the `"use client"` island that bootstraps the design-token
  * panel adapter inside the zfb hydration pipeline.
  *
- * zfb renders pages as server components by default. This file marks the
- * boundary between server-rendered HTML and the zudo-react island that runs in
- * the browser. `components/app-shell.tsx` wraps this component in
- * `<Island when="visible" ssrFallback={null}>`, so zfb emits a
- * `data-zfb-island-skip-ssr` placeholder at the end of `<body>` and the
- * hydration runtime renders this component into it via an
- * `IntersectionObserver` (threshold 0) once the placeholder intersects the
- * viewport — never at SSR time, and never before first paint.
+ * The shell uses a client-only `when="load"` island so the topbar action is
+ * available without scrolling to this component's empty end-of-page marker.
+ * The widget package itself remains lazy until a click or persisted signal.
  *
  * Panel adapter bootstrap
  * -----------------------
@@ -27,22 +22,9 @@
  *      `configurePanel` so persisted overrides land as soon as the module
  *      resolves.
  *
- * What the eager-load gate does — and does NOT — buy in THIS host
- * ---------------------------------------------------------------
- * The vite-react and Next hosts run their equivalent gate from the entry
- * script, so a hit there restores the user's tweaks before the first paint
- * and the gate is an FOUT defence. That reasoning does NOT transfer here.
- * Under `when="visible"` this whole file is deferred until after paint by
- * construction, so a returning user with saved tweaks always sees one frame
- * of stylesheet defaults. The gate cannot close that window, and no amount
- * of widening it would.
- *
- * What it decides here is whether the panel chunk is fetched *at all*. A
- * visitor with no panel signals never downloads it; a user who had the panel
- * open, armed a closed-shell feature, or saved overrides gets it restored on
- * hydration without having to call a `window.<ns>.*` helper from the console.
- * That is why the gate still has to be exhaustive: a missed signal is not a
- * cosmetic flash here, it is a feature that silently never comes back.
+ * The gate fetches the widget only when saved state or a closed-shell feature
+ * requires restoration. Activation follows page parsing, so it does not
+ * promise restoration before first paint.
  *
  * Eager-load signals come from the package, never from this file
  * -------------------------------------------------------------

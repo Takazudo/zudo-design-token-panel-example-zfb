@@ -20,8 +20,8 @@
   },
   "dependencies": {
     "@takazudo/zdtp": "0.5.1",
-    "@takazudo/zfb": "3.2.0",
-    "@takazudo/zfb-runtime": "3.2.0",
+    "@takazudo/zfb": "4.0.0",
+    "@takazudo/zfb-runtime": "4.0.0",
     "preact": "^10.29.1"
   },
   "devDependencies": {
@@ -33,7 +33,9 @@
   },
   "pnpm": {
     "overrides": {
-      "hono": "^4.12.34"
+      "hono": "^4.12.34",
+      "miniflare>sharp": "0.35.5",
+      "concurrently>shell-quote": "1.11.0"
     },
     "onlyBuiltDependencies": [
       "esbuild",

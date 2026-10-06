@@ -107,7 +107,7 @@ export function ModalInner() {
 
 export function ModalDemo() {
   return (
-    <Island when="visible" ssrFallback={null}>
+    <Island when="load" ssrFallback={null}>
       <ModalInner />
     </Island>
   );

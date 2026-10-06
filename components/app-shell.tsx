@@ -86,7 +86,7 @@ export function AppShell({ title = 'zfb — Design Token Panel', activePath = BA
           Uses `ssrFallback={null}` (the zfb equivalent of Astro's `client:only`)
           so the island's internals are NOT evaluated at SSR time.
         */}
-        <Island when="visible" ssrFallback={null}>
+        <Island when="load" ssrFallback={null}>
           <PanelMount />
         </Island>
       </body>
