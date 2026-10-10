@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { STORAGE_KEY_VISIBLE } from './panel-storage';
 
 test('cold panel button loads one widget and preserves the static easing demo', async ({ page }) => {
   await page.goto('/');
@@ -77,6 +78,11 @@ test('closed panel restores a saved override without reopening', async ({ page }
   const radius = () => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--zfb-radius').trim());
   await expect.poll(radius).toBe('1.25rem');
   await page.locator('.tokenpanel-close-btn').first().click();
+  await expect(page.locator('.tokenpanel-shell')).not.toBeVisible();
+  // zdtp persists visibility in a Preact effect; reload only after close is saved.
+  await expect.poll(() => page.evaluate((key) =>
+    localStorage.getItem(key), STORAGE_KEY_VISIBLE,
+  )).toBe('0');
   await page.reload();
   await expect.poll(radius).toBe('1.25rem');
   await expect(page.locator('.tokenpanel-shell')).not.toBeVisible();

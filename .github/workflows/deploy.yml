@@ -184,9 +184,11 @@ jobs:
     needs: build
     # Fork PRs never receive repository secrets, so a preview could only fail
     # there. Skip the job outright rather than letting it run and self-skip.
+    # This upgrade branch is validation-only: no preview publication is authorized.
     if: >-
       github.event_name == 'pull_request' &&
-      github.event.pull_request.head.repo.full_name == github.repository
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.head_ref != 'chore/zfb-4.3.0-20261010'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
