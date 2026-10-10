@@ -14,9 +14,12 @@
 // and the bare path would never be reached — see `PROBE-REPORT.md` for the
 // historical context.
 //
-// The plugin is dev-only. During `zfb build` the `devMiddleware` hook is
-// not invoked, so the production static output has no dependency on this
-// module or on the sidecar port.
+// The same handler is registered under `previewMiddleware` (zfb #1542), so
+// the panel's Apply button also works against `zfb preview` — the built-site
+// server the Playwright suite drives. zfb never reuses a `devMiddleware`
+// registration for preview on its own; each mode is an explicit opt-in.
+// Neither hook runs during `zfb build`, so the deployed static output has no
+// dependency on this module or on the sidecar port.
 //
 // No npm dependencies beyond the sibling port resolver: global `fetch`
 // (available in Node 18+) is used to forward the request. The response status
@@ -36,68 +39,74 @@ const SIDECAR_TIMEOUT_MS = 15_000;
 // devMiddleware routes — zfb mounts handlers under `base` per issue #229.
 const APPLY_ROUTE = "/api/dev/apply";
 
+/**
+ * @param {import("@takazudo/zfb/plugins").ZfbDevMiddlewareContext
+ *   | import("@takazudo/zfb/plugins").ZfbPreviewMiddlewareContext} ctx
+ */
+function registerApplyProxy(ctx) {
+  ctx.register(APPLY_ROUTE, async (req) => {
+    if (req.method !== "POST") {
+      // Only POST is valid for the apply endpoint; let other methods 405.
+      return {
+        status: 405,
+        headers: { "content-type": "text/plain" },
+        body: "Method Not Allowed",
+      };
+    }
+
+    // The sidecar treats a request with NO Origin header as "not allowed"
+    // (its check is `allowOrigins.includes(origin)`, and an absent origin is
+    // never in the list), so the browser's Origin has to survive this proxy
+    // hop or every dev-mode apply 403s no matter what --allow-origin says.
+    // scripts/ports.mjs puts both server origins in that list.
+    const forwardedOrigin = req.headers["origin"] ?? req.headers["Origin"];
+
+    let upstreamResponse;
+    try {
+      upstreamResponse = await fetch(BIN_SIDECAR_APPLY_URL, {
+        method: "POST",
+        headers: {
+          "content-type": req.headers["content-type"] ?? "application/json",
+          ...(forwardedOrigin ? { origin: forwardedOrigin } : {}),
+        },
+        // `req.body` is the raw request body string forwarded by zfb's
+        // plugin host. Forward it verbatim — the bin sidecar expects JSON.
+        body: req.body ?? "",
+        signal: AbortSignal.timeout(SIDECAR_TIMEOUT_MS),
+      });
+    } catch (err) {
+      // Sidecar unreachable (not started yet, crashed, wrong port, …) or
+      // request exceeded SIDECAR_TIMEOUT_MS (TimeoutError from AbortSignal).
+      const isTimeout = err instanceof Error && err.name === "TimeoutError";
+      ctx.logger.error(
+        `[dev-apply-proxy] fetch to ${BIN_SIDECAR_APPLY_URL} ${
+          isTimeout ? `timed out after ${SIDECAR_TIMEOUT_MS}ms` : `failed: ${String(err)}`
+        }`,
+      );
+      return {
+        status: isTimeout ? 504 : 502,
+        headers: { "content-type": "text/plain" },
+        body: isTimeout
+          ? `Gateway Timeout: bin sidecar did not respond within ${SIDECAR_TIMEOUT_MS}ms`
+          : `Bad Gateway: bin sidecar unreachable at ${BIN_SIDECAR_APPLY_URL}`,
+      };
+    }
+
+    const responseBody = await upstreamResponse.text();
+    return {
+      status: upstreamResponse.status,
+      headers: {
+        "content-type":
+          upstreamResponse.headers.get("content-type") ?? "application/json",
+      },
+      body: responseBody,
+    };
+  });
+}
+
 /** @type {import("@takazudo/zfb/plugins").ZfbPlugin} */
 export default {
   name: "dev-apply-proxy",
-
-  devMiddleware(ctx) {
-    ctx.register(APPLY_ROUTE, async (req) => {
-      if (req.method !== "POST") {
-        // Only POST is valid for the apply endpoint; let other methods 405.
-        return {
-          status: 405,
-          headers: { "content-type": "text/plain" },
-          body: "Method Not Allowed",
-        };
-      }
-
-      // The sidecar treats a request with NO Origin header as "not allowed"
-      // (its check is `allowOrigins.includes(origin)`, and an absent origin is
-      // never in the list), so the browser's Origin has to survive this proxy
-      // hop or every dev-mode apply 403s no matter what --allow-origin says.
-      // scripts/ports.mjs puts both server origins in that list.
-      const forwardedOrigin = req.headers["origin"] ?? req.headers["Origin"];
-
-      let upstreamResponse;
-      try {
-        upstreamResponse = await fetch(BIN_SIDECAR_APPLY_URL, {
-          method: "POST",
-          headers: {
-            "content-type": req.headers["content-type"] ?? "application/json",
-            ...(forwardedOrigin ? { origin: forwardedOrigin } : {}),
-          },
-          // `req.body` is the raw request body string forwarded by zfb's
-          // plugin host. Forward it verbatim — the bin sidecar expects JSON.
-          body: req.body ?? "",
-          signal: AbortSignal.timeout(SIDECAR_TIMEOUT_MS),
-        });
-      } catch (err) {
-        // Sidecar unreachable (not started yet, crashed, wrong port, …) or
-        // request exceeded SIDECAR_TIMEOUT_MS (TimeoutError from AbortSignal).
-        const isTimeout = err instanceof Error && err.name === "TimeoutError";
-        ctx.logger.error(
-          `[dev-apply-proxy] fetch to ${BIN_SIDECAR_APPLY_URL} ${
-            isTimeout ? `timed out after ${SIDECAR_TIMEOUT_MS}ms` : `failed: ${String(err)}`
-          }`,
-        );
-        return {
-          status: isTimeout ? 504 : 502,
-          headers: { "content-type": "text/plain" },
-          body: isTimeout
-            ? `Gateway Timeout: bin sidecar did not respond within ${SIDECAR_TIMEOUT_MS}ms`
-            : `Bad Gateway: bin sidecar unreachable at ${BIN_SIDECAR_APPLY_URL}`,
-        };
-      }
-
-      const responseBody = await upstreamResponse.text();
-      return {
-        status: upstreamResponse.status,
-        headers: {
-          "content-type":
-            upstreamResponse.headers.get("content-type") ?? "application/json",
-        },
-        body: responseBody,
-      };
-    });
-  },
+  devMiddleware: registerApplyProxy,
+  previewMiddleware: registerApplyProxy,
 };
