@@ -251,3 +251,5 @@ renderer text-position difference accepted during parity review.
 Scoped pnpm overrides for `miniflare>sharp` and `concurrently>shell-quote`
 resolve advisories in the current tooling graph. Reassess these overrides when
 the parent packages publish dependency updates; the audit gate remains enabled.
+
+<!-- throwaway: content-only CI proof -->
