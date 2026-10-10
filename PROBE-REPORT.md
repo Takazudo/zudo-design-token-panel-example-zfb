@@ -142,3 +142,66 @@ test double also verifies that restoration errors leave the production adapter's
 public actions and teardown usable. This tests the adapter's error boundary,
 not simulated widget internals. Independent source review approved the final
 changes, including the reset attribution and full platform lockfile.
+
+## 2026-10-10: published zfb 4.3.0 verification
+
+Base: `2a9b6c7f3a48f404482f34c1ab868425aee4604e`. Root SDK/runtime now pin
+exactly `4.3.0`, including the runtime's exact SDK peer. Release source:
+`689dfbfcfe4154aaccffe74d14bb5aadfef3ec6a`
+([v4.3.0](https://github.com/Takazudo/zudo-front-builder/releases/tag/v4.3.0)).
+The npm registry still reports `latest=4.3.0` for all eleven family packages.
+All eleven downloaded tarballs match registry SHA-512 integrity; all five native
+carrier archives contain their binaries, and the four md-wasm bytes match the
+exported shipped-artifacts manifest's SHA-256 values. Only the Linux x64 GNU
+binary was executed. No unpublished build or upstream implementation was used.
+
+Published package-surface diffs from 4.0.0 retain the SDK exports and add exact
+`@takazudo/zfb-slugify@4.3.0`; runtime's SDK peer advances in lockstep. Release
+notes through 4.3.0 cover scanner/watch fixes and deferred-island hydration.
+No application/config migration was needed. Default esbuild and `wind: false`
+remain; zdtp 0.5.1 and all unrelated dependency resolutions/overrides are unchanged.
+This repository has no separate zudo-doc workspace or compatible 2.x path.
+
+Verification on Linux x86_64, Node 24.19.0, **pnpm 10.33.2** (via `corepack pnpm`),
+Playwright 1.60.0 / downloaded Chromium 148.0.7778.96:
+
+- `corepack pnpm install --frozen-lockfile`: pass.
+- `corepack pnpm typecheck`: pass, collection check and TypeScript.
+- `corepack pnpm audit --audit-level high`: no known vulnerabilities.
+- `corepack pnpm test:e2e --reporter=list`, with `CI`/`BASE_URL` unset and the
+  personal heavy guard: **17 passed**, including its normal `pnpm run build`
+  and production preview/sidecar startup. Token controls, highlights, persistence,
+  modal inert/focus behavior, keyboard tabs, forms, and file-write restoration pass.
+- Six prerendered routes, output paths, and full page titles match the 4.0.0
+  baseline. All six generated pages contain the panel entry point.
+- A guarded standalone Chromium probe against `node scripts/launch.mjs dev`
+  verifies hydration and panel open/close on all six routes, modal and keyboard
+  tabs, a real radius-control edit, and `POST /api/dev/apply` through the dev
+  proxy to the sidecar. The CSS write is observed and restored byte-for-byte;
+  no page exceptions or local HTTP asset errors occur.
+
+The initial suite exposed a pre-existing test race: reloading immediately after
+Close can beat zdtp 0.5.1's Preact effect that persists visibility. Original
+4.3.0 run: 16/17 pass; focused original test: 2/3 pass. An isolated, frozen
+4.0.0 baseline initially passed 3/3, then failed 6/10 repetitions with the same
+reopened-panel assertion. The spec now **also asserts** the panel is hidden and
+its shared visibility key is `0` before reload; the original restored-radius and
+closed-panel assertions remain. No sleep, retry, skipped assertion, or timeout
+increase was added. The corrected full suite passes 17/17, and the corrected
+persistence test passes 10/10 focused repetitions (`--grep "closed panel"
+--repeat-each=10`).
+
+Existing issue #16 continues to own the decision about browser CI coverage;
+this upgrade does not silently add a fleet-wide policy. Issue #15's old 2.x
+hono workaround is left intact. Upstream #3879 was inspected; no new ZFB defect
+was established by these checks. Native macOS (including watcher/IME behavior),
+Linux ARM64, Windows execution, WebKit and Firefox remain untested here.
+
+The preview job explicitly excludes branch `chore/zfb-4.3.0-20261010` so this
+validation-only PR cannot upload a preview, even if it is marked ready later.
+Build CI remains enabled; production deployment triggers remain unchanged.
+No merge, release, publication, or deployment is part of this task.
+
+Local diagnostic logs, registry integrity inventory, WASM manifest, screenshot,
+and dev probe script are retained at `/tmp/zfb-430-evidence/`. Final-head CI
+status is recorded in the draft PR, not inferred from these local checks.
