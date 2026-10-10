@@ -25,9 +25,9 @@ import {
   navigateViaSidenav,
   openViaHeader,
   panelShell,
+  STORAGE_PREFIX,
   setLengthToken,
   test,
-  toggleViaHeader,
 } from './support';
 
 type MarkedWindow = Window & { __marker?: number };
@@ -129,8 +129,7 @@ test('panel visibility persists across navigation, history and reload', async ({
   await expectRoute(page, 'Home');
   await expect(panelShell(page)).toHaveCount(0);
 
-  await toggleViaHeader(page);
-  await expect(panelShell(page)).toBeVisible();
+  await openViaHeader(page);
   await page.goForward();
   await expectRoute(page, 'Forms');
   await expect(panelShell(page)).toBeVisible();
@@ -144,6 +143,21 @@ test('a token edit persists across navigation, history and reload', async ({ pag
 
   await setLengthToken(page, /^size$/i, '--zfb-radius', '1.25');
   await expect(activeLink(page)).toHaveCSS('border-top-left-radius', '20px');
+  // Like visibility, the override is persisted after render; navigate only
+  // once a stored state envelope carries it.
+  await expect
+    .poll(() =>
+      page.evaluate((prefix) => {
+        for (let i = 0; i < localStorage.length; i += 1) {
+          const key = localStorage.key(i);
+          if (key?.startsWith(`${prefix}-state`) && localStorage.getItem(key)?.includes('1.25rem')) {
+            return true;
+          }
+        }
+        return false;
+      }, STORAGE_PREFIX),
+    )
+    .toBe(true);
 
   await navigateViaSidenav(page, 'Data');
   await expect(activeLink(page)).toHaveCSS('border-top-left-radius', '20px');

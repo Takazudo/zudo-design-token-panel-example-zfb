@@ -100,16 +100,29 @@ export async function toggleViaHeader(page: Page): Promise<void> {
   await page.getByRole('button', { name: 'Open Design Token Panel', exact: true }).click();
 }
 
+/**
+ * zdtp persists visibility in a Preact effect, after the shell renders. Wait
+ * for the stored flag before any navigation or reload so the next document
+ * restores the state the test just set rather than racing the write.
+ */
+async function expectPersistedVisibility(page: Page, value: '0' | '1'): Promise<void> {
+  await expect
+    .poll(() => page.evaluate((key) => localStorage.getItem(key), `${STORAGE_PREFIX}:visible`))
+    .toBe(value);
+}
+
 export async function openViaHeader(page: Page): Promise<void> {
   await expect(panelShell(page)).toHaveCount(0);
   await toggleViaHeader(page);
   await expect(panelShell(page)).toBeVisible();
+  await expectPersistedVisibility(page, '1');
 }
 
 export async function closeViaHeader(page: Page): Promise<void> {
   await expect(panelShell(page)).toBeVisible();
   await toggleViaHeader(page);
   await expect(panelShell(page)).toHaveCount(0);
+  await expectPersistedVisibility(page, '0');
 }
 
 /** Sidenav link click — a real document navigation on this MPA host. */
