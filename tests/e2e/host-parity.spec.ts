@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, expectSinglePanelInstance } from './support';
 import { STORAGE_KEY_VISIBLE } from './panel-storage';
 
 test('cold panel button loads one widget and preserves the static easing demo', async ({ page }) => {
@@ -11,6 +11,10 @@ test('cold panel button loads one widget and preserves the static easing demo', 
   await page.locator('.zfb-easing-card').click();
   await expect(page.locator('.zfb-easing-card')).toHaveAttribute('aria-pressed', 'false');
   await page.goto('/components/forms/');
+  // Opening the panel left an autoload signal, so this page loads the widget
+  // module eagerly. Leave only once it has bound — navigating away mid-import
+  // would abort the chunk request.
+  await expectSinglePanelInstance(page, 0);
   await page.goBack();
   await page.waitForFunction(() => typeof (window as any).zfb?.toggleDesignPanel === 'function');
   await page.locator('#zfb-panel-open').click();
