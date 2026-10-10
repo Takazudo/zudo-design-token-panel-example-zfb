@@ -25,7 +25,8 @@
  * Console namespace:    `window.zfb`
  */
 
-import { test, expect, type Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
+import { test, expect } from './support';
 import { clearPanelStorage, setPanelVisibleFlag } from './panel-storage';
 
 // ---------------------------------------------------------------------------
