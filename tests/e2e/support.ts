@@ -12,6 +12,8 @@
  */
 
 import { test as base, expect, type Locator, type Page } from '@playwright/test';
+import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { BROWSER_ORIGIN, ZDTP_PORT } from '../../scripts/ports.mjs';
@@ -82,6 +84,32 @@ export function panelShell(page: Page): Locator {
 }
 
 /**
+ * The `version` of the zdtp package actually installed for this checkout,
+ * resolved through Node's own module resolution at test time — never a
+ * hard-coded string, so the assertion follows whatever the lockfile installed.
+ */
+export const INSTALLED_ZDTP_VERSION: string = (() => {
+  const manifestPath = createRequire(import.meta.url).resolve('@takazudo/zdtp/package.json');
+  const { version } = JSON.parse(readFileSync(manifestPath, 'utf8')) as { version?: unknown };
+  if (typeof version !== 'string' || version === '') {
+    throw new Error(`no version in ${manifestPath}`);
+  }
+  return version;
+})();
+
+/**
+ * The mounted shell carries `data-zdtp-version` (zdtp >= 0.9.1): the version
+ * of the zdtp build that created it. Exactly one shell must be visible, and it
+ * must come from the installed package rather than a stale or second copy.
+ */
+export async function expectShellVersionMarker(page: Page): Promise<void> {
+  const shell = panelShell(page);
+  await expect(shell).toHaveCount(1);
+  await expect(shell).toBeVisible();
+  await expect(shell).toHaveAttribute('data-zdtp-version', INSTALLED_ZDTP_VERSION);
+}
+
+/**
  * Waits until the PanelMount island has activated and installed the console
  * API the topbar trigger calls. Before that, a click on the trigger is a no-op
  * by design (see components/app-shell.tsx).
@@ -101,7 +129,7 @@ export async function toggleViaHeader(page: Page): Promise<void> {
 }
 
 /**
- * zdtp persists visibility in a Preact effect, after the shell renders. Wait
+ * zdtp persists visibility in a render effect, after the shell renders. Wait
  * for the stored flag before any navigation or reload so the next document
  * restores the state the test just set rather than racing the write.
  */
@@ -115,6 +143,7 @@ export async function openViaHeader(page: Page): Promise<void> {
   await expect(panelShell(page)).toHaveCount(0);
   await toggleViaHeader(page);
   await expect(panelShell(page)).toBeVisible();
+  await expectShellVersionMarker(page);
   await expectPersistedVisibility(page, '1');
 }
 
@@ -154,12 +183,17 @@ export async function expectRoute(page: Page, label: RouteLabel): Promise<void> 
  */
 export async function expectSinglePanelInstance(page: Page, shellCount: 0 | 1): Promise<void> {
   await expect(page.locator(`[id="${PANEL_ROOT_ID}"]`)).toHaveCount(1);
-  for (const mount of ['highlight', 'elpath', 'element-inspect', 'domtweaker']) {
+  for (const mount of ['highlight', 'elpath', 'element-inspect']) {
     await expect(page.locator(`[id="tokenpanel-${mount}-mount"]`)).toHaveCount(1);
   }
+  // zdtp >= 0.9.0 creates the DOM Tweaker mount only when `domTweaker` is
+  // configured; config/panel-config.ts passes none, so it must not exist.
+  await expect(page.locator('[id="tokenpanel-domtweaker-mount"]')).toHaveCount(0);
   // The stylesheet the panel self-injects on first mount (PORTABLE-CONTRACT §4.1.4).
   await expect(page.locator('style#zudo-design-token-panel-styles')).toHaveCount(1);
   await expect(panelShell(page)).toHaveCount(shellCount);
+  // A shell restored on a fresh document must also come from the installed build.
+  if (shellCount === 1) await expectShellVersionMarker(page);
 }
 
 /**

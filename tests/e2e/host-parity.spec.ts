@@ -1,4 +1,4 @@
-import { test, expect, expectSinglePanelInstance } from './support';
+import { test, expect, expectShellVersionMarker, expectSinglePanelInstance } from './support';
 import { STORAGE_KEY_VISIBLE } from './panel-storage';
 
 test('cold panel button loads one widget and preserves the static easing demo', async ({ page }) => {
@@ -7,6 +7,7 @@ test('cold panel button loads one widget and preserves the static easing demo', 
   await page.locator('#zfb-panel-open').click();
   await expect(page.locator('.tokenpanel-shell')).toBeVisible();
   await expect(page.locator('.tokenpanel-shell')).toHaveCount(1);
+  await expectShellVersionMarker(page);
   await page.locator('.tokenpanel-close-btn').first().click();
   await page.locator('.zfb-easing-card').click();
   await expect(page.locator('.zfb-easing-card')).toHaveAttribute('aria-pressed', 'false');
@@ -83,7 +84,7 @@ test('closed panel restores a saved override without reopening', async ({ page }
   await expect.poll(radius).toBe('1.25rem');
   await page.locator('.tokenpanel-close-btn').first().click();
   await expect(page.locator('.tokenpanel-shell')).not.toBeVisible();
-  // zdtp persists visibility in a Preact effect; reload only after close is saved.
+  // zdtp persists visibility in a render effect; reload only after close is saved.
   await expect.poll(() => page.evaluate((key) =>
     localStorage.getItem(key), STORAGE_KEY_VISIBLE,
   )).toBe('0');
