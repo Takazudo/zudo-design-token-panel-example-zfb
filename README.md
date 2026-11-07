@@ -148,6 +148,29 @@ and its persisted state survive every load across the six routes.
 CI runs the same suite in the `browser` job of `.github/workflows/deploy.yml`
 on every pull request and on pushes to `main`. Content-only changes (see
 `scripts/browser-relevant-changes.sh`) log `skipped: content-only` and pass.
+The production `deploy` job needs both `build` and `browser` to succeed, so a
+failed browser suite blocks the deploy.
+
+## Panel version
+
+`@takazudo/zdtp` is pinned to an exact version in `package.json`. From 0.9.0
+the panel bundles its own zudo-react runtime instead of Preact. Every mounted
+panel shell carries a `data-zdtp-version` attribute (zdtp 0.9.1 and later)
+naming the version of the zdtp build that created it:
+
+```js
+document.querySelector('.tokenpanel-shell')?.dataset.zdtpVersion
+```
+
+The browser suite asserts it equals the `version` in the installed
+`node_modules/@takazudo/zdtp/package.json` (`tests/e2e/support.ts`). The
+attribute names the package version the build declared; it does not prove the
+bytes match an npm release.
+
+zdtp declares an optional peer `@takazudo/zfb ^5.1.2`. It is only used by the
+static `@takazudo/zdtp/dashboard` entry, which this example does not import, so
+`pnpm install` prints an unmet-peer warning against this host's zfb 4.3.0.
+That warning is expected and deliberately left visible rather than silenced.
 
 ## Typecheck
 
@@ -171,7 +194,7 @@ zfb's `<Island>` component marks a `"use client"` subtree for browser-side hydra
 
 **Why `ssrFallback={null}` (the zfb `client:only` equivalent)?**
 
-The host island uses zudo-react. `ssrFallback={null}` keeps the self-mounting zdtp Preact widget client-only; its module is loaded lazily after activation. The adapter tracks live owners and invalidates pending imports on disposal, then destroys the widget through its public instance handle. zdtp 0.8.x owns its Preact runtime, so the host declares no `preact` dependency, and the panel injects its own stylesheet on first mount, so `styles/global.css` does not import `@takazudo/zdtp/styles.css`.
+The host island uses zudo-react. `ssrFallback={null}` keeps the self-mounting zdtp widget client-only; its module is loaded lazily after activation. The adapter tracks live owners and invalidates pending imports on disposal, then destroys the widget through its public instance handle. Since 0.9.0 the panel renders with its own bundled copy of the zudo-react runtime and no longer uses Preact, so the host declares no `preact` dependency and the panel's runtime is independent of the host's zfb version. The panel injects its own stylesheet on first mount, so `styles/global.css` does not import `@takazudo/zdtp/styles.css`.
 
 The `when="load"` strategy activates the adapter after page parsing, so the topbar action works without scrolling to an empty end-of-page marker. The widget module remains lazy until a click or a persisted-state signal requires it. Saved overrides are restored after loading; this does not promise restoration before first paint.
 
@@ -232,9 +255,9 @@ For the historical context (when `base` was `/pj/zudo-design-token-panel/example
 
 ## zfb 4 migration
 
-The host pins published zfb and zfb-runtime 4.0.0 and uses zudo-react islands.
-It keeps authored CSS with `wind: false`; the panel is pinned to zdtp 0.8.6,
-which owns its Preact runtime. `styles/reset.css` preserves the reset previously emitted by zfb
+The host pins published zfb and zfb-runtime 4.3.0 and uses zudo-react islands.
+It keeps authored CSS with `wind: false`. The panel package is pinned exactly
+in `package.json`; see "Panel version" below. `styles/reset.css` preserves the reset previously emitted by zfb
 2.15.1; its upstream MIT notice is retained. Tabs take a unique `id` per instance
 for deterministic ARIA relationships. Modal and tabs islands activate on load.
 
