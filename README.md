@@ -271,6 +271,6 @@ closed-panel persistence, dev apply proxy, and local Worker routing have been
 verified. See [PROBE-REPORT.md](./PROBE-REPORT.md) for evidence and the narrow
 renderer text-position difference accepted during parity review.
 
-Scoped pnpm overrides for `miniflare>sharp` and `concurrently>shell-quote`
+Scoped pnpm overrides for `miniflare>sharp`, `miniflare>undici` and `concurrently>shell-quote`
 resolve advisories in the current tooling graph. Reassess these overrides when
 the parent packages publish dependency updates; the audit gate remains enabled.
